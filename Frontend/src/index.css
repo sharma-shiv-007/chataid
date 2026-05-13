@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* AI-Assisted Patient Intake — Hospital Design System
+   All colors in HSL. Medical blue + white palette. */
+
+@layer base {
+  :root {
+    --background: 210 33% 97%;
+    --foreground: 210 40% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 40% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 40% 11%;
+
+    /* Medical blue brand */
+    --primary: 199 89% 48%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 199 30% 92%;
+    --secondary-foreground: 199 60% 25%;
+
+    --muted: 210 20% 94%;
+    --muted-foreground: 210 15% 46%;
+
+    --accent: 199 60% 90%;
+    --accent-foreground: 199 70% 30%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 20% 88%;
+    --input: 210 20% 88%;
+    --ring: 199 89% 48%;
+
+    --radius: 0.75rem;
+
+    /* Chat-specific tokens */
+    --chat-bot-bg: 199 40% 95%;
+    --chat-bot-fg: 210 40% 11%;
+    --chat-user-bg: 199 89% 48%;
+    --chat-user-fg: 0 0% 100%;
+    --chat-input-bg: 0 0% 100%;
+    --chat-container-bg: 0 0% 100%;
+
+    /* Header gradient */
+    --header-from: 199 89% 48%;
+    --header-to: 199 70% 38%;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 210 40% 6%;
+    --foreground: 210 20% 95%;
+    --card: 210 40% 10%;
+    --card-foreground: 210 20% 95%;
+    --popover: 210 40% 10%;
+    --popover-foreground: 210 20% 95%;
+    --primary: 199 89% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 199 30% 15%;
+    --secondary-foreground: 199 30% 80%;
+    --muted: 210 20% 15%;
+    --muted-foreground: 210 15% 60%;
+    --accent: 199 30% 18%;
+    --accent-foreground: 199 60% 80%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 210 20% 18%;
+    --input: 210 20% 18%;
+    --ring: 199 89% 48%;
+    --chat-bot-bg: 210 30% 14%;
+    --chat-bot-fg: 210 20% 90%;
+    --chat-user-bg: 199 89% 48%;
+    --chat-user-fg: 0 0% 100%;
+    --chat-input-bg: 210 30% 12%;
+    --chat-container-bg: 210 40% 8%;
+    --header-from: 199 70% 30%;
+    --header-to: 199 50% 22%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer utilities {
+  .header-gradient {
+    background: linear-gradient(135deg, hsl(var(--header-from)), hsl(var(--header-to)));
+  }
+  .chat-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .chat-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .chat-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+}
