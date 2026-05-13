@@ -1,6 +1,9 @@
 // Backend/controllers/availabilityController.js
 const DoctorAvailability = require("../models/doctorAvailability");
 const Appointment        = require("../models/appointment");
+const Doctor             = require("../models/doctor");
+const Admin              = require("../models/admin");
+const { createNotif }    = require("../services/notificationService");
 
 const DAYS = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
 
@@ -18,6 +21,32 @@ function generateSlots(startTime, endTime, durationMins) {
     cur += durationMins;
   }
   return slots;
+}
+
+function buildWeeklySchedule(weeklySchedule) {
+  const built = {};
+  for (const day of DAYS) {
+    const d = weeklySchedule?.[day];
+    if (!d) { built[day] = { active: false, slots: [], slotDurationMins: 30 }; continue; }
+    if (!d.active) { built[day] = { active: false, slots: [], slotDurationMins: d.slotDurationMins || 30 }; continue; }
+    const slots = generateSlots(d.startTime, d.endTime, d.slotDurationMins || 30);
+    built[day] = { active: true, slots, slotDurationMins: d.slotDurationMins || 30 };
+  }
+  return built;
+}
+
+async function saveScheduleForDoctor(doctorId, weeklySchedule) {
+  if (!weeklySchedule) {
+    const err = new Error("weeklySchedule is required.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return DoctorAvailability.findOneAndUpdate(
+    { doctorId },
+    { $set: { weeklySchedule: buildWeeklySchedule(weeklySchedule), isAvailable: true } },
+    { upsert: true, new: true }
+  );
 }
 
 // ── GET /api/availability/me  (doctor gets their own schedule) ────────────────
@@ -39,27 +68,40 @@ exports.getMyAvailability = async (req, res) => {
 exports.setSchedule = async (req, res) => {
   try {
     const { weeklySchedule } = req.body;
-    if (!weeklySchedule) return res.status(400).json({ error: "weeklySchedule is required." });
-
-    // Build the schedule with generated slots
-    const built = {};
-    for (const day of DAYS) {
-      const d = weeklySchedule[day];
-      if (!d) { built[day] = { active: false, slots: [], slotDurationMins: 30 }; continue; }
-      if (!d.active) { built[day] = { active: false, slots: [], slotDurationMins: d.slotDurationMins || 30 }; continue; }
-      const slots = generateSlots(d.startTime, d.endTime, d.slotDurationMins || 30);
-      built[day] = { active: true, slots, slotDurationMins: d.slotDurationMins || 30 };
-    }
-
-    const avail = await DoctorAvailability.findOneAndUpdate(
-      { doctorId: req.user.id },
-      { $set: { weeklySchedule: built } },
-      { upsert: true, new: true }
-    );
+    const avail = await saveScheduleForDoctor(req.user.id, weeklySchedule);
     res.json({ availability: avail });
   } catch (err) {
     console.error("setSchedule:", err);
-    res.status(500).json({ error: "Could not save schedule." });
+    res.status(err.statusCode || 500).json({ error: err.message || "Could not save schedule." });
+  }
+};
+
+exports.getDoctorAvailabilityForAdmin = async (req, res) => {
+  try {
+    const doctor = await Doctor.findById(req.params.doctorId).select("name email specialisation hospital");
+    if (!doctor) return res.status(404).json({ error: "Doctor not found." });
+
+    let availability = await DoctorAvailability.findOne({ doctorId: doctor._id });
+    if (!availability) {
+      availability = { doctorId: doctor._id, weeklySchedule: {}, leaves: [], leaveRequests: [], isAvailable: true };
+    }
+
+    res.json({ doctor, availability });
+  } catch (err) {
+    res.status(500).json({ error: "Could not fetch doctor availability." });
+  }
+};
+
+exports.setDoctorScheduleForAdmin = async (req, res) => {
+  try {
+    const doctor = await Doctor.findById(req.params.doctorId).select("_id name");
+    if (!doctor) return res.status(404).json({ error: "Doctor not found." });
+
+    const availability = await saveScheduleForDoctor(doctor._id, req.body.weeklySchedule);
+    res.json({ doctor, availability });
+  } catch (err) {
+    console.error("setDoctorScheduleForAdmin:", err);
+    res.status(err.statusCode || 500).json({ error: err.message || "Could not save doctor schedule." });
   }
 };
 
@@ -99,16 +141,117 @@ exports.toggleAvailability = async (req, res) => {
 // Body: { date: "2025-06-20" }
 exports.addLeave = async (req, res) => {
   try {
-    const { date } = req.body;
+    const { date, reason = "", notifyAdmin = false } = req.body;
     if (!date) return res.status(400).json({ error: "date is required (YYYY-MM-DD)." });
+    if (notifyAdmin && !String(reason).trim()) {
+      return res.status(400).json({ error: "Reason is required when notifying admin." });
+    }
+
+    const update = { $addToSet: { leaves: date } };
+    if (notifyAdmin || String(reason).trim()) {
+      update.$push = {
+        leaveRequests: {
+          date,
+          reason: String(reason).trim(),
+          status: "pending",
+          requestedAt: new Date(),
+        },
+      };
+    }
+
     const avail = await DoctorAvailability.findOneAndUpdate(
       { doctorId: req.user.id },
-      { $addToSet: { leaves: date } },
+      update,
       { upsert: true, new: true }
     );
-    res.json({ leaves: avail.leaves });
+
+    if (notifyAdmin || String(reason).trim()) {
+      const doctor = await Doctor.findById(req.user.id).select("name specialisation");
+      const admins = await Admin.find({}).select("_id");
+      await Promise.all(admins.map(admin => createNotif(
+        admin._id,
+        "Admin",
+        "leave_request",
+        `Dr. ${doctor?.name || "Doctor"} requested leave on ${date}: ${String(reason).trim()}`,
+        "/admin-dashboard"
+      )));
+    }
+
+    res.json({ leaves: avail.leaves, leaveRequests: avail.leaveRequests || [] });
   } catch (err) {
     res.status(500).json({ error: "Could not add leave." });
+  }
+};
+
+exports.getLeaveRequestsForAdmin = async (_req, res) => {
+  try {
+    const requests = await DoctorAvailability.find({ "leaveRequests.0": { $exists: true } })
+      .select("doctorId leaveRequests")
+      .populate("doctorId", "name email specialisation hospital")
+      .sort({ updatedAt: -1 });
+
+    res.json({
+      requests: requests.flatMap(av => (av.leaveRequests || []).map(request => ({
+        ...request.toObject(),
+        doctor: av.doctorId,
+      }))).sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt)),
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Could not load leave requests." });
+  }
+};
+
+exports.reviewLeaveRequestForAdmin = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { decision } = req.body;
+    if (!["approved", "cancelled"].includes(decision)) {
+      return res.status(400).json({ error: "decision must be approved or cancelled." });
+    }
+
+    const availability = await DoctorAvailability.findOne({ "leaveRequests._id": requestId })
+      .populate("doctorId", "name email specialisation");
+    if (!availability) return res.status(404).json({ error: "Leave request not found." });
+
+    const request = availability.leaveRequests.id(requestId);
+    if (!request) return res.status(404).json({ error: "Leave request not found." });
+
+    request.status = decision;
+    request.reviewedAt = new Date();
+    request.reviewedBy = req.user.id;
+
+    if (decision === "approved") {
+      if (!availability.leaves.includes(request.date)) availability.leaves.push(request.date);
+    } else {
+      availability.leaves = availability.leaves.filter(date => date !== request.date);
+    }
+
+    await availability.save();
+
+    const doctorName = availability.doctorId?.name || "Doctor";
+    const message = decision === "approved"
+      ? `Your leave request for ${request.date} was approved by admin.`
+      : `Your leave request for ${request.date} was cancelled by admin.`;
+
+    await createNotif(
+      availability.doctorId._id || availability.doctorId,
+      "Doctor",
+      "leave_request",
+      message,
+      "/doctor-dashboard"
+    );
+
+    res.json({
+      success: true,
+      request: {
+        ...request.toObject(),
+        doctor: availability.doctorId,
+      },
+      message: `Leave request for Dr. ${doctorName} ${decision}.`,
+    });
+  } catch (err) {
+    console.error("reviewLeaveRequestForAdmin:", err);
+    res.status(500).json({ error: "Could not update leave request." });
   }
 };
 

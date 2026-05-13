@@ -6,7 +6,7 @@ import {
   HeartPulse, Search, User, Activity, Heart, Thermometer,
   LogOut, AlertCircle, X, Save, Upload, Clock, Pill,
   StickyNote, Calendar, CheckCircle, Loader, Trash2, Plus,
-  Check,
+  Check, Bell,
 } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -1330,12 +1330,26 @@ export default function DoctorDashboard() {
   const navigate   = useNavigate();
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("appointments");
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
     if (!localStorage.getItem("medicare_token")) navigate("/login");
   }, [navigate]);
 
+  useEffect(() => {
+    api.get("/notifications")
+      .then(data => setNotifications(data.notifications || []))
+      .catch(() => setNotifications([]));
+  }, []);
+
   const handleLogout = () => { logout(); navigate("/", { replace: true }); };
+  const unreadNotifications = notifications.filter(notification => !notification.isRead).slice(0, 3);
+
+  const markAllNotificationsRead = async () => {
+    if (!unreadNotifications.length) return;
+    setNotifications(prev => prev.map(notification => ({ ...notification, isRead: true })));
+    await api.patch("/notifications/read-all", {}).catch(() => null);
+  };
 
   const renderTab = () => {
     switch (activeTab) {
@@ -1382,6 +1396,25 @@ export default function DoctorDashboard() {
           <span style={{ fontSize: 12, color: C.dim }}>Doctor Dashboard</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, paddingRight: 148 }}>
+          {unreadNotifications.length > 0 && (
+            <div style={{ minWidth: 260, maxWidth: 360, background: C.surface, border: `1px solid ${C.cyanBdr}`, borderRadius: 12, padding: "8px 10px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6, color: C.cyan, fontSize: 12, fontWeight: 800 }}>
+                  <Bell size={13} /> Notifications
+                </span>
+                <button onClick={markAllNotificationsRead} style={{ background: "transparent", border: `1px solid ${C.borderMid}`, color: C.dim, borderRadius: 7, padding: "3px 7px", fontSize: 10, cursor: "pointer" }}>
+                  Mark read
+                </button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                {unreadNotifications.map(notification => (
+                  <div key={notification._id} style={{ fontSize: 11, color: C.text, lineHeight: 1.35 }}>
+                    <strong>{notification.title || "Notification"}:</strong> {notification.message}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {user?.name && (
             <span style={{ fontSize: 12, color: C.dim }}>{formatDoctorName(user.name)}</span>
           )}

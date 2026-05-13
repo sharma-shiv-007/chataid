@@ -16,6 +16,7 @@ const NOTIF_TITLES = {
   reminder:            "Reminder",
   cancellation:         "Appointment Cancelled",
   patient_choice:       "Patient Response",
+  leave_request:        "Doctor Leave Request",
   refund:               "Refund Update",
   reschedule:           "Appointment Rescheduled",
   general:             "Notification",

@@ -1,22 +1,78 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
 
+const emptyDoctorForm = {
+  name: "",
+  email: "",
+  password: "",
+  specialisation: "",
+  medRegNo: "",
+  hospital: "",
+  phone: "",
+};
+
+const emptyNurseForm = {
+  name: "",
+  email: "",
+  password: "",
+  hospital: "",
+  phone: "",
+};
+
+const DAYS = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"] as const;
+type Day = typeof DAYS[number];
+
+type DayScheduleDraft = {
+  active: boolean;
+  startTime: string;
+  endTime: string;
+  slotDurationMins: number;
+};
+
+type WeeklyScheduleDraft = Record<Day, DayScheduleDraft>;
+
+const emptySchedule = (): WeeklyScheduleDraft =>
+  Object.fromEntries(DAYS.map(day => [day, {
+    active: false,
+    startTime: "09:00",
+    endTime: "17:00",
+    slotDurationMins: 30,
+  }])) as WeeklyScheduleDraft;
+
+const addMins = (time: string, mins: number) => {
+  const [h, m] = time.split(":").map(Number);
+  const total = h * 60 + m + mins;
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+};
+
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"overview" | "doctors" | "nurses" | "appointments" | "cancellations" | "emergency">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "doctors" | "nurses" | "appointments" | "cancellations" | "leave" | "emergency">("overview");
   const [appointments, setAppointments] = useState<any[]>([]);
   const [appointmentsLoading, setAppointmentsLoading] = useState(false);
   const [appointmentsError, setAppointmentsError] = useState("");
   const [cancellations, setCancellations] = useState<any[]>([]);
   const [cancellationsLoading, setCancellationsLoading] = useState(false);
   const [cancellationsError, setCancellationsError] = useState("");
+  const [doctors, setDoctors] = useState<any[]>([]);
   const [nurses, setNurses] = useState<any[]>([]);
-  const [nurseDoctors, setNurseDoctors] = useState<any[]>([]);
-  const [nursesLoading, setNursesLoading] = useState(false);
-  const [nursesError, setNursesError] = useState("");
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffError, setStaffError] = useState("");
+  const [doctorForm, setDoctorForm] = useState(emptyDoctorForm);
+  const [nurseForm, setNurseForm] = useState(emptyNurseForm);
+  const [creatingRole, setCreatingRole] = useState<"" | "doctor" | "nurse">("");
+  const [staffSuccess, setStaffSuccess] = useState("");
+  const [scheduleDoctor, setScheduleDoctor] = useState<any>(null);
+  const [scheduleDraft, setScheduleDraft] = useState<WeeklyScheduleDraft>(() => emptySchedule());
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleMsg, setScheduleMsg] = useState("");
+  const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
+  const [leaveLoading, setLeaveLoading] = useState(false);
+  const [leaveError, setLeaveError] = useState("");
 
   const handleLogout = () => { logout(); navigate("/login"); };
 
@@ -25,13 +81,6 @@ export default function AdminDashboard() {
     { label: "Today's Patients",   value: "143", icon: "👥", color: "text-blue-400",   sub: "+12 vs yesterday" },
     { label: "Emergencies Today",  value: "7",   icon: "🚨", color: "text-red-400",    sub: "3 critical" },
     { label: "Beds Available",     value: "38",  icon: "🛏", color: "text-green-400",  sub: "of 120 total" },
-  ];
-
-  const doctors = [
-    { id: "DOC001", name: "Dr. Rajiv Sharma",  specialty: "Cardiologist",      status: "on-duty",  patients: 8 },
-    { id: "DOC002", name: "Dr. Sunita Raina",  specialty: "Cardiologist",      status: "on-duty",  patients: 6 },
-    { id: "DOC003", name: "Dr. Priya Mehta",   specialty: "Trauma Specialist", status: "off-duty", patients: 0 },
-    { id: "DOC004", name: "Dr. Vikram Singh",  specialty: "Trauma Specialist", status: "on-duty",  patients: 5 },
   ];
 
   const emergencies = JSON.parse(localStorage.getItem("emergency_appointments") ?? "[]");
@@ -63,23 +112,163 @@ export default function AdminDashboard() {
     if (activeTab === "cancellations") fetchCancellations();
   }, [activeTab]);
 
-  const fetchNurses = async () => {
-    setNursesLoading(true);
-    setNursesError("");
+  const fetchStaff = async () => {
+    setStaffLoading(true);
+    setStaffError("");
     try {
       const data = await api.get("/nurses");
       setNurses(data.nurses || []);
-      setNurseDoctors(data.doctors || []);
+      setDoctors(data.doctors || []);
     } catch (err: any) {
-      setNursesError(err?.message || "Could not load nurses.");
+      setStaffError(err?.message || "Could not load staff.");
     } finally {
-      setNursesLoading(false);
+      setStaffLoading(false);
     }
   };
 
   useEffect(() => {
-    if (activeTab === "nurses") fetchNurses();
+    if (["overview", "doctors", "nurses"].includes(activeTab)) fetchStaff();
   }, [activeTab]);
+
+  const draftFromAvailability = (availability: any): WeeklyScheduleDraft => {
+    const next = emptySchedule();
+    const weeklySchedule = availability?.weeklySchedule || {};
+    for (const day of DAYS) {
+      const saved = weeklySchedule[day];
+      if (!saved) continue;
+      const slots = (saved.slots || []).map((slot: any) => slot.time);
+      next[day] = {
+        active: Boolean(saved.active),
+        startTime: slots[0] || "09:00",
+        endTime: slots.length
+          ? addMins(slots[slots.length - 1], saved.slotDurationMins || 30)
+          : "17:00",
+        slotDurationMins: saved.slotDurationMins || 30,
+      };
+    }
+    return next;
+  };
+
+  const loadDoctorSchedule = async (doctor: any) => {
+    const doctorId = doctor._id || doctor.id;
+    setScheduleDoctor(doctor);
+    setScheduleMsg("");
+    setScheduleLoading(true);
+    try {
+      const data = await api.get(`/availability/admin/${doctorId}`);
+      setScheduleDraft(draftFromAvailability(data.availability));
+    } catch (err: any) {
+      setScheduleMsg(err?.message || "Could not load doctor schedule.");
+      setScheduleDraft(emptySchedule());
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
+
+  const updateScheduleDay = (day: Day, field: keyof DayScheduleDraft, value: any) =>
+    setScheduleDraft(prev => ({ ...prev, [day]: { ...prev[day], [field]: value } }));
+
+  const saveDoctorSchedule = async () => {
+    if (!scheduleDoctor) return;
+    const doctorId = scheduleDoctor._id || scheduleDoctor.id;
+    setScheduleSaving(true);
+    setScheduleMsg("");
+    try {
+      await api.put(`/availability/admin/${doctorId}/schedule`, { weeklySchedule: scheduleDraft });
+      setScheduleMsg("Schedule saved. Patients will see these slots now.");
+      await fetchStaff();
+    } catch (err: any) {
+      setScheduleMsg(err?.message || "Could not save doctor schedule.");
+    } finally {
+      setScheduleSaving(false);
+    }
+  };
+
+  const fetchLeaveRequests = async () => {
+    setLeaveLoading(true);
+    setLeaveError("");
+    try {
+      const data = await api.get("/availability/admin/leave-requests");
+      setLeaveRequests(data.requests || []);
+    } catch (err: any) {
+      setLeaveError(err?.message || "Could not load leave requests.");
+    } finally {
+      setLeaveLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "leave") fetchLeaveRequests();
+  }, [activeTab]);
+
+  const reviewLeaveRequest = async (requestId: string, decision: "approved" | "cancelled") => {
+    try {
+      await api.patch(`/availability/admin/leave-requests/${requestId}`, { decision });
+      setLeaveRequests(prev => prev.map(req => req._id === requestId ? { ...req, status: decision } : req));
+    } catch (err: any) {
+      alert(err?.message || "Could not update leave request.");
+    }
+  };
+
+  const updateDoctorForm = (field: keyof typeof emptyDoctorForm) =>
+    (e: ChangeEvent<HTMLInputElement>) => setDoctorForm(prev => ({ ...prev, [field]: e.target.value }));
+
+  const updateNurseForm = (field: keyof typeof emptyNurseForm) =>
+    (e: ChangeEvent<HTMLInputElement>) => setNurseForm(prev => ({ ...prev, [field]: e.target.value }));
+
+  const createDoctor = async () => {
+    setStaffError("");
+    setStaffSuccess("");
+    if (!doctorForm.name.trim() || !doctorForm.email.trim() || !doctorForm.password.trim()) {
+      setStaffError("Doctor name, email, and password are required.");
+      return;
+    }
+    setCreatingRole("doctor");
+    try {
+      await api.post("/auth/signup/doctor", {
+        ...doctorForm,
+        name: doctorForm.name.trim(),
+        email: doctorForm.email.trim(),
+        specialisation: doctorForm.specialisation.trim(),
+        medRegNo: doctorForm.medRegNo.trim(),
+        hospital: doctorForm.hospital.trim(),
+        phone: doctorForm.phone.trim(),
+      });
+      setDoctorForm(emptyDoctorForm);
+      setStaffSuccess("Doctor registered successfully.");
+      await fetchStaff();
+    } catch (err: any) {
+      setStaffError(err?.message || "Could not register doctor.");
+    } finally {
+      setCreatingRole("");
+    }
+  };
+
+  const createNurse = async () => {
+    setStaffError("");
+    setStaffSuccess("");
+    if (!nurseForm.name.trim() || !nurseForm.email.trim() || !nurseForm.password.trim()) {
+      setStaffError("Nurse name, email, and password are required.");
+      return;
+    }
+    setCreatingRole("nurse");
+    try {
+      await api.post("/auth/signup/nurse", {
+        ...nurseForm,
+        name: nurseForm.name.trim(),
+        email: nurseForm.email.trim(),
+        hospital: nurseForm.hospital.trim(),
+        phone: nurseForm.phone.trim(),
+      });
+      setNurseForm(emptyNurseForm);
+      setStaffSuccess("Nurse registered successfully.");
+      await fetchStaff();
+    } catch (err: any) {
+      setStaffError(err?.message || "Could not register nurse.");
+    } finally {
+      setCreatingRole("");
+    }
+  };
 
   const assignNurse = async (nurseId: string, doctorId: string) => {
     try {
@@ -138,14 +327,14 @@ export default function AdminDashboard() {
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6">
-          {(["overview", "doctors", "nurses", "appointments", "cancellations", "emergency"] as const).map(t => (
+          {(["overview", "doctors", "nurses", "appointments", "cancellations", "leave", "emergency"] as const).map(t => (
             <button key={t} onClick={() => setActiveTab(t)}
               className={`px-4 py-2 rounded-xl text-sm font-medium border transition capitalize
                 ${activeTab === t
                   ? t === "emergency" ? "bg-red-600/20 border-red-500/40 text-red-300"
                     : "bg-teal-600/20 border-teal-500/40 text-teal-300"
                   : "border-slate-700 text-slate-400 hover:text-white"}`}>
-              {t === "emergency" ? `🚨 Emergencies ${emergencies.length > 0 ? `(${emergencies.length})` : ""}` : t.charAt(0).toUpperCase() + t.slice(1)}
+              {t === "emergency" ? `🚨 Emergencies ${emergencies.length > 0 ? `(${emergencies.length})` : ""}` : t === "leave" ? "Leave Requests" : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
         </div>
@@ -191,22 +380,85 @@ export default function AdminDashboard() {
         {/* DOCTORS */}
         {activeTab === "doctors" && (
           <div className="space-y-3">
+            <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5">
+              <h3 className="text-white font-bold">Register Doctor</h3>
+              <p className="text-slate-400 text-xs mt-1 mb-4">Only admins can create doctor accounts.</p>
+              <div className="grid md:grid-cols-2 gap-3">
+                <input className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none" placeholder="Doctor name" value={doctorForm.name} onChange={updateDoctorForm("name")} />
+                <input className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none" placeholder="Email" type="email" value={doctorForm.email} onChange={updateDoctorForm("email")} />
+                <input className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none" placeholder="Password" type="password" value={doctorForm.password} onChange={updateDoctorForm("password")} />
+                <input className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none" placeholder="Specialisation" value={doctorForm.specialisation} onChange={updateDoctorForm("specialisation")} />
+                <input className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none" placeholder="Medical registration no." value={doctorForm.medRegNo} onChange={updateDoctorForm("medRegNo")} />
+                <input className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none" placeholder="Hospital" value={doctorForm.hospital} onChange={updateDoctorForm("hospital")} />
+                <input className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none" placeholder="Phone" value={doctorForm.phone} onChange={updateDoctorForm("phone")} />
+              </div>
+              <button onClick={createDoctor} disabled={creatingRole === "doctor"} className="mt-4 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl text-sm font-semibold">
+                {creatingRole === "doctor" ? "Registering..." : "Register Doctor"}
+              </button>
+            </div>
+
+            {staffSuccess && <div className="bg-green-500/10 border border-green-500/30 text-green-300 rounded-xl p-3 text-sm">{staffSuccess}</div>}
+            {staffError && <div className="bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl p-3 text-sm">{staffError}</div>}
+            {scheduleDoctor && (
+              <div className="bg-slate-800/60 border border-teal-500/30 rounded-2xl p-5">
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="text-white font-bold">Set Schedule for Dr. {scheduleDoctor.name}</h3>
+                    <p className="text-slate-400 text-xs mt-1">These slots are shown directly to patients.</p>
+                  </div>
+                  <button onClick={() => setScheduleDoctor(null)} className="text-slate-400 hover:text-white text-sm">Close</button>
+                </div>
+
+                {scheduleLoading ? (
+                  <p className="text-slate-400 text-sm">Loading schedule...</p>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="hidden md:grid grid-cols-[110px_70px_1fr_1fr_110px] gap-2 px-2 text-[10px] uppercase tracking-wide text-slate-500 font-bold">
+                      <span>Day</span><span>Active</span><span>Start</span><span>End</span><span>Slot</span>
+                    </div>
+                    {DAYS.map(day => {
+                      const d = scheduleDraft[day];
+                      return (
+                        <div key={day} className={`grid md:grid-cols-[110px_70px_1fr_1fr_110px] gap-2 items-center rounded-xl border p-2 ${d.active ? "bg-teal-500/10 border-teal-500/30" : "bg-slate-900/50 border-slate-700"}`}>
+                          <p className="capitalize text-sm font-semibold text-slate-200">{day}</p>
+                          <label className="flex items-center gap-2 text-xs text-slate-300">
+                            <input type="checkbox" checked={d.active} onChange={e => updateScheduleDay(day, "active", e.target.checked)} />
+                            Open
+                          </label>
+                          <input type="time" disabled={!d.active} value={d.startTime} onChange={e => updateScheduleDay(day, "startTime", e.target.value)} className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none disabled:opacity-40" />
+                          <input type="time" disabled={!d.active} value={d.endTime} onChange={e => updateScheduleDay(day, "endTime", e.target.value)} className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none disabled:opacity-40" />
+                          <select disabled={!d.active} value={d.slotDurationMins} onChange={e => updateScheduleDay(day, "slotDurationMins", Number(e.target.value))} className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none disabled:opacity-40">
+                            {[15, 20, 30, 45, 60].map(min => <option key={min} value={min}>{min} min</option>)}
+                          </select>
+                        </div>
+                      );
+                    })}
+                    <button onClick={saveDoctorSchedule} disabled={scheduleSaving} className="mt-3 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl text-sm font-semibold">
+                      {scheduleSaving ? "Saving..." : "Save Schedule"}
+                    </button>
+                    {scheduleMsg && <p className="text-xs text-teal-300 mt-2">{scheduleMsg}</p>}
+                  </div>
+                )}
+              </div>
+            )}
+            {staffLoading && <div className="p-5 text-center text-slate-400 text-sm">Loading doctors...</div>}
+            {!staffLoading && doctors.length === 0 && <div className="p-8 text-center text-slate-500 text-sm bg-slate-800/60 border border-slate-700 rounded-2xl">No doctors registered yet.</div>}
             {doctors.map(d => (
-              <div key={d.id} className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 flex items-center justify-between">
+              <div key={d._id || d.id} className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-teal-600/20 rounded-xl flex items-center justify-center text-xl">🩺</div>
                   <div>
                     <p className="text-white font-semibold text-sm">{d.name}</p>
-                    <p className="text-slate-400 text-xs">{d.specialty} · ID: {d.id}</p>
-                    <p className="text-slate-500 text-xs mt-0.5">{d.patients} patients today</p>
+                    <p className="text-slate-400 text-xs">{d.specialisation || "No specialisation"} - {d.email}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">{d.hospital || "No hospital listed"}</p>
                   </div>
                 </div>
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-full border
-                  ${d.status === "on-duty"
-                    ? "bg-green-500/20 text-green-300 border-green-500/30"
-                    : "bg-slate-600/20 text-slate-400 border-slate-600/30"}`}>
-                  {d.status === "on-duty" ? "● On Duty" : "Off Duty"}
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full border bg-green-500/20 text-green-300 border-green-500/30">
+                  Active
                 </span>
+                <button onClick={() => loadDoctorSchedule(d)} className="ml-3 text-xs font-semibold px-3 py-1.5 rounded-lg border border-teal-500/30 text-teal-300 hover:bg-teal-500/10">
+                  Schedule
+                </button>
               </div>
             ))}
           </div>
@@ -217,15 +469,30 @@ export default function AdminDashboard() {
           <div className="bg-slate-800/60 border border-slate-700 rounded-2xl overflow-hidden">
             <div className="p-5 border-b border-slate-700">
               <h3 className="text-white font-bold">Nurses</h3>
-              <p className="text-slate-400 text-xs mt-1">Assign newly created nurse accounts to a doctor</p>
+              <p className="text-slate-400 text-xs mt-1">Register nurses and assign them to a doctor</p>
             </div>
 
-            {nursesLoading ? (
+            <div className="p-5 border-b border-slate-700">
+              <div className="grid md:grid-cols-2 gap-3">
+                <input className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none" placeholder="Nurse name" value={nurseForm.name} onChange={updateNurseForm("name")} />
+                <input className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none" placeholder="Email" type="email" value={nurseForm.email} onChange={updateNurseForm("email")} />
+                <input className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none" placeholder="Password" type="password" value={nurseForm.password} onChange={updateNurseForm("password")} />
+                <input className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none" placeholder="Hospital" value={nurseForm.hospital} onChange={updateNurseForm("hospital")} />
+                <input className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none" placeholder="Phone" value={nurseForm.phone} onChange={updateNurseForm("phone")} />
+              </div>
+              <button onClick={createNurse} disabled={creatingRole === "nurse"} className="mt-4 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl text-sm font-semibold">
+                {creatingRole === "nurse" ? "Registering..." : "Register Nurse"}
+              </button>
+              {staffSuccess && <div className="mt-3 bg-green-500/10 border border-green-500/30 text-green-300 rounded-xl p-3 text-sm">{staffSuccess}</div>}
+              {staffError && <div className="mt-3 bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl p-3 text-sm">{staffError}</div>}
+            </div>
+
+            {staffLoading ? (
               <div className="p-8 text-center text-slate-400 text-sm">Loading nurses...</div>
-            ) : nursesError ? (
-              <div className="p-8 text-center text-red-300 text-sm">{nursesError}</div>
+            ) : staffError ? (
+              <div className="p-8 text-center text-red-300 text-sm">{staffError}</div>
             ) : nurses.length === 0 ? (
-              <div className="p-8 text-center text-slate-500 text-sm">No nurses found. Create a nurse account from the login page.</div>
+              <div className="p-8 text-center text-slate-500 text-sm">No nurses found. Register one above.</div>
             ) : (
               <div className="divide-y divide-slate-700/70">
                 {nurses.map(nurse => (
@@ -243,7 +510,7 @@ export default function AdminDashboard() {
                       className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none min-w-[240px]"
                     >
                       <option value="">Select doctor</option>
-                      {nurseDoctors.map(doc => (
+                      {doctors.map(doc => (
                         <option key={doc._id} value={doc._id}>
                           Dr. {doc.name} {doc.specialisation ? `- ${doc.specialisation}` : ""}
                         </option>
@@ -393,6 +660,62 @@ export default function AdminDashboard() {
                   </div>
                 );
               })
+            )}
+          </div>
+        )}
+
+        {/* LEAVE REQUESTS */}
+        {activeTab === "leave" && (
+          <div className="bg-slate-800/60 border border-slate-700 rounded-2xl overflow-hidden">
+            <div className="p-5 border-b border-slate-700 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-white font-bold">Doctor Leave Requests</h3>
+                <p className="text-slate-400 text-xs mt-1">Reasons submitted from doctor availability dashboards</p>
+              </div>
+              <button onClick={fetchLeaveRequests} className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-teal-500/30 text-teal-300 hover:bg-teal-500/10">
+                Refresh
+              </button>
+            </div>
+
+            {leaveLoading ? (
+              <div className="p-8 text-center text-slate-400 text-sm">Loading leave requests...</div>
+            ) : leaveError ? (
+              <div className="p-8 text-center text-red-300 text-sm">{leaveError}</div>
+            ) : leaveRequests.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 text-sm">No leave requests yet.</div>
+            ) : (
+              <div className="divide-y divide-slate-700/70">
+                {leaveRequests.map(req => (
+                  <div key={req._id} className="p-5">
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
+                      <div>
+                        <p className="text-white font-semibold text-sm">Dr. {req.doctor?.name || "Doctor"}</p>
+                        <p className="text-slate-400 text-xs mt-1">
+                          {req.doctor?.specialisation || "No specialisation"} - {req.doctor?.email || "No email"}
+                        </p>
+                        <p className="text-slate-300 text-sm mt-3">{req.reason || "No reason provided."}</p>
+                      </div>
+                      <div className="text-left md:text-right">
+                        <p className="text-teal-300 font-bold text-sm">{req.date}</p>
+                        <p className="text-slate-500 text-xs mt-1">{new Date(req.requestedAt).toLocaleString("en-IN")}</p>
+                        <span className="inline-block mt-2 px-2 py-1 rounded-full text-xs font-bold bg-yellow-500/10 text-yellow-300 border border-yellow-500/30">
+                          {req.status || "pending"}
+                        </span>
+                        {req.status === "pending" && (
+                          <div className="flex md:justify-end gap-2 mt-3">
+                            <button onClick={() => reviewLeaveRequest(req._id, "approved")} className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-green-500/30 text-green-300 hover:bg-green-500/10">
+                              Approve
+                            </button>
+                            <button onClick={() => reviewLeaveRequest(req._id, "cancelled")} className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-500/30 text-red-300 hover:bg-red-500/10">
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}

@@ -12,6 +12,15 @@ const dayScheduleSchema = new mongoose.Schema({
   slotDurationMins:{ type: Number, default: 30 },
 }, { _id: false });
 
+const leaveRequestSchema = new mongoose.Schema({
+  date:        { type: String, required: true },
+  reason:      { type: String, default: "" },
+  status:      { type: String, enum: ["pending", "approved", "cancelled"], default: "pending" },
+  requestedAt: { type: Date, default: Date.now },
+  reviewedAt:  { type: Date },
+  reviewedBy:  { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+}, { _id: true });
+
 const doctorAvailabilitySchema = new mongoose.Schema({
   doctorId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -33,6 +42,7 @@ const doctorAvailabilitySchema = new mongoose.Schema({
 
   // Specific dates the doctor has marked as leave  e.g. ["2025-06-20", "2025-07-04"]
   leaves: { type: [String], default: [] },
+  leaveRequests: { type: [leaveRequestSchema], default: [] },
 
   // isAvailable: global toggle — doctor can go "on leave" instantly
   isAvailable: { type: Boolean, default: true },

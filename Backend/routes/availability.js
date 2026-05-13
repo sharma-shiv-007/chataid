@@ -2,11 +2,18 @@
 const express = require("express");
 const router  = express.Router();
 const auth    = require("../middleware/auth");
+const allow   = require("../middleware/roleGuard");
 const ctrl    = require("../controllers/availabilityController");
 
 // Patient — no auth needed to browse doctors/slots
 router.get("/doctors",         ctrl.getAvailableDoctors);  // GET /api/availability/doctors
 router.get("/slots",           ctrl.getAvailableSlots);    // GET /api/availability/slots?doctorId=&date=
+
+// Admin — manage doctor schedules and review leave requests
+router.get("/admin/leave-requests", auth, allow("admin"), ctrl.getLeaveRequestsForAdmin);
+router.patch("/admin/leave-requests/:requestId", auth, allow("admin"), ctrl.reviewLeaveRequestForAdmin);
+router.get("/admin/:doctorId",      auth, allow("admin"), ctrl.getDoctorAvailabilityForAdmin);
+router.put("/admin/:doctorId/schedule", auth, allow("admin"), ctrl.setDoctorScheduleForAdmin);
 
 // Doctor — must be logged in
 router.get   ("/me",           auth, ctrl.getMyAvailability);  // GET  /api/availability/me

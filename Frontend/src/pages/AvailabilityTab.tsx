@@ -56,6 +56,8 @@ export default function AvailabilityTab() {
     Object.fromEntries(DAYS.map(d => [d, defaultDay()])) as WeeklyDraft
   );
   const [leaveInput, setLeaveInput] = useState("");
+  const [notifyAdmin, setNotifyAdmin] = useState(false);
+  const [leaveReason, setLeaveReason] = useState("");
   const [saving,     setSaving]     = useState(false);
   const [toggling,   setToggling]   = useState(false);
   const [msg,        setMsg]        = useState<{ text: string; ok: boolean } | null>(null);
@@ -135,11 +137,25 @@ export default function AvailabilityTab() {
   // Add leave date
   const addLeave = async () => {
     if (!leaveInput) return;
+    if (notifyAdmin && !leaveReason.trim()) {
+      flash("Please add a reason for admin.", false);
+      return;
+    }
     const date = leaveInput;
     try {
-      const data = await api.post("/availability/leave", { date });
-      setAvail((prev: any) => ({ ...prev, leaves: data.leaves }));
+      const data = await api.post("/availability/leave", {
+        date,
+        notifyAdmin,
+        reason: leaveReason.trim(),
+      });
+      setAvail((prev: any) => ({
+        ...prev,
+        leaves: data.leaves,
+        leaveRequests: data.leaveRequests || prev?.leaveRequests || [],
+      }));
       setLeaveInput("");
+      setNotifyAdmin(false);
+      setLeaveReason("");
       flash(date === getTodayKey() ? "Leave added for today. OPD Closed" : `Leave added for ${date} ✓`);
     } catch (err: any) {
       flash(err?.message || "Could not add leave.", false);
@@ -314,6 +330,19 @@ export default function AvailabilityTab() {
               <Plus size={13} /> Add Leave
             </motion.button>
           </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, color: C.text, fontSize: 12, fontWeight: 700 }}>
+            <input type="checkbox" checked={notifyAdmin} onChange={e => setNotifyAdmin(e.target.checked)} />
+            Notify admin with reason
+          </label>
+          {notifyAdmin && (
+            <textarea
+              value={leaveReason}
+              onChange={e => setLeaveReason(e.target.value)}
+              placeholder="Reason for leave"
+              rows={3}
+              style={{ ...inp, resize: "vertical", marginBottom: 14 }}
+            />
+          )}
 
           {/* Leave list */}
           {leaves.length === 0 ? (

@@ -7,7 +7,7 @@ import type { AuthUser } from "../auth/AuthContext";
 const GOOGLE_CLIENT_ID = "639757510544-sr6f7jfs3fab6sve0vftgcv8sv0gnc29.apps.googleusercontent.com";
 const API = "http://localhost:5000/api/auth";
 
-type Screen = "select" | "patient" | "doctor" | "doctorSignup" | "nurse" | "nurseSignup" | "admin" | "phone" | "otp" | "forgot" | "resetSent";
+type Screen = "select" | "patient" | "doctor" | "nurse" | "admin" | "phone" | "otp" | "forgot" | "resetSent";
 let mockOtp = "";
 
 // ── Styles (module-level so they never recreate) ───────────────────────────────
@@ -196,14 +196,6 @@ export default function Login() {
   const [resetToken,  setResetToken]  = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [resetSuccess,setResetSuccess]= useState("");
-  const [doctorName,  setDoctorName]  = useState("");
-  const [doctorSpec,  setDoctorSpec]  = useState("");
-  const [doctorRegNo, setDoctorRegNo] = useState("");
-  const [doctorHosp,  setDoctorHosp]  = useState("");
-  const [doctorPhone, setDoctorPhone] = useState("");
-  const [nurseName,   setNurseName]   = useState("");
-  const [nurseHosp,   setNurseHosp]   = useState("");
-  const [nursePhone,  setNursePhone]  = useState("");
   const [error,       setError]       = useState("");
   const [loading,     setLoading]     = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
@@ -314,96 +306,6 @@ export default function Login() {
     }
   }
 
-  async function handleDoctorSignup() {
-    if (!doctorName.trim() || !email.trim() || !password.trim()) {
-      setError("Doctor name, email, and password are required.");
-      return;
-    }
-    if (!doctorSpec.trim()) {
-      setError("Specialisation is required so voice booking can assign appointments.");
-      return;
-    }
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      setError("Enter a valid email address.");
-      return;
-    }
-
-    setLoading(true); setError("");
-    try {
-      const res = await fetch(`${API}/signup/doctor`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: doctorName.trim(),
-          email: email.trim(),
-          password,
-          specialisation: doctorSpec.trim(),
-          medRegNo: doctorRegNo.trim(),
-          hospital: doctorHosp.trim(),
-          phone: doctorPhone.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Doctor registration failed."); return; }
-
-      const u: AuthUser = {
-        id: data.user._id ?? data.user.id,
-        name: data.user.name,
-        email: data.user.email,
-        role: "doctor",
-        hospitalId: data.user.hospitalId,
-      };
-      login(data.token, u);
-      doRedirect("doctor");
-    } catch {
-      setError("Cannot connect to server. Is your backend running?");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleNurseSignup() {
-    if (!nurseName.trim() || !email.trim() || !password.trim()) {
-      setError("Nurse name, email, and password are required.");
-      return;
-    }
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      setError("Enter a valid email address.");
-      return;
-    }
-
-    setLoading(true); setError("");
-    try {
-      const res = await fetch(`${API}/signup/nurse`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: nurseName.trim(),
-          email: email.trim(),
-          password,
-          hospital: nurseHosp.trim(),
-          phone: nursePhone.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Nurse registration failed."); return; }
-
-      const u: AuthUser = {
-        id: data.user._id ?? data.user.id,
-        name: data.user.name,
-        email: data.user.email,
-        role: "nurse",
-        hospitalId: data.user.hospitalId,
-      };
-      login(data.token, u);
-      doRedirect("nurse");
-    } catch {
-      setError("Cannot connect to server. Is your backend running?");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function sendOtp() {
     if (!phone.trim() || phone.length < 10) { setError("Enter a valid 10-digit phone number."); return; }
     setLoading(true); setError("");
@@ -475,8 +377,6 @@ export default function Login() {
   const goTo = (s: Screen) => {
     setScreen(s); setError(""); setEmail(""); setPassword(""); setShowPw(false);
     setNewPassword(""); setResetSuccess("");
-    setDoctorName(""); setDoctorSpec(""); setDoctorRegNo(""); setDoctorHosp(""); setDoctorPhone("");
-    setNurseName(""); setNurseHosp(""); setNursePhone("");
   };
 
   // ── Shared email form props ────────────────────────────────────────────────
@@ -597,59 +497,6 @@ export default function Login() {
                 hint="doctor@chataid.in / Doctor@1234"
                 onSubmit={() => handleEmailLogin("doctor")}
                 onForgotPassword={() => { setResetEmail(email); goTo("forgot"); }} />
-              <button
-                onClick={() => goTo("doctorSignup")}
-                style={{ ...ghostBtn, marginTop: 12, color: "#60a5fa", border: "1px solid rgba(96,165,250,0.22)" }}
-              >
-                Create Doctor Account
-              </button>
-            </>
-          )}
-
-          {/* ── ADMIN ── */}
-          {screen === "doctorSignup" && (
-            <>
-              <button style={backBtnStyle} onClick={() => goTo("doctor")}>â† back</button>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.25rem" }}>
-                <span style={{ fontSize: 28 }}>ðŸ©º</span>
-                <div>
-                  <p style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9", margin: 0 }}>Create Doctor Account</p>
-                  <p style={{ fontSize: 12, color: "#475569", margin: 0 }}>Add a real backend doctor for bookings</p>
-                </div>
-              </div>
-              <Field label="Doctor name" value={doctorName} onChange={setDoctorName} placeholder="Dr. Neha Sharma" onEnter={handleDoctorSignup} />
-              <Field label="Email address" type="email" value={email} onChange={setEmail} placeholder="doctor@clinic.com" onEnter={handleDoctorSignup} />
-              <Field
-                label="Password"
-                type={showPw ? "text" : "password"}
-                value={password}
-                onChange={setPassword}
-                placeholder="Doctor@123"
-                onEnter={handleDoctorSignup}
-                suffix={
-                  <button onClick={() => setShowPw(!showPw)} style={eyeStyle}>
-                    {showPw ? "hide" : "show"}
-                  </button>
-                }
-              />
-              <Field label="Specialisation" value={doctorSpec} onChange={setDoctorSpec} placeholder="General Medicine" onEnter={handleDoctorSignup} />
-              <Field label="Medical registration no." value={doctorRegNo} onChange={setDoctorRegNo} placeholder="MCI-12345" onEnter={handleDoctorSignup} />
-              <Field label="Hospital" value={doctorHosp} onChange={setDoctorHosp} placeholder="ChatAid Clinic" onEnter={handleDoctorSignup} />
-              <Field label="Phone" value={doctorPhone} onChange={setDoctorPhone} placeholder="9876543210" onEnter={handleDoctorSignup} />
-              <Err msg={error} />
-              <button
-                onClick={handleDoctorSignup}
-                disabled={loading}
-                style={{ ...tealBtn, marginTop: 16, opacity: loading ? 0.6 : 1, cursor: loading ? "not-allowed" : "pointer", color: "#60a5fa", border: "1px solid rgba(96,165,250,0.3)", background: "rgba(96,165,250,0.1)" }}
-              >
-                {loading ? <><Spinner /> Creating doctorâ€¦</> : "Create Doctor Account â†’"}
-              </button>
-              <div style={hintBox}>
-                <p style={{ fontSize: 11, color: "#334155", fontWeight: 600, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  Voice booking specialties
-                </p>
-                <p style={{ fontSize: 12, color: "#475569", margin: 0 }}>Use names like General Medicine, Cardiology, Pediatrics, Dermatology, or Orthopedics.</p>
-              </div>
             </>
           )}
 
@@ -667,50 +514,6 @@ export default function Login() {
                 hint="Use the nurse account you created"
                 onSubmit={() => handleEmailLogin("nurse")}
                 onForgotPassword={() => { setResetEmail(email); goTo("forgot"); }} />
-              <button
-                onClick={() => goTo("nurseSignup")}
-                style={{ ...ghostBtn, marginTop: 12, color: "#34d399", border: "1px solid rgba(52,211,153,0.22)" }}
-              >
-                Create Nurse Account
-              </button>
-            </>
-          )}
-
-          {screen === "nurseSignup" && (
-            <>
-              <button style={backBtnStyle} onClick={() => goTo("nurse")}>back</button>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.25rem" }}>
-                <span style={{ fontSize: 28, color: "#34d399", fontWeight: 800 }}>N</span>
-                <div>
-                  <p style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9", margin: 0 }}>Create Nurse Account</p>
-                  <p style={{ fontSize: 12, color: "#475569", margin: 0 }}>Admin can assign this nurse to a doctor</p>
-                </div>
-              </div>
-              <Field label="Nurse name" value={nurseName} onChange={setNurseName} placeholder="Nurse Asha Verma" onEnter={handleNurseSignup} />
-              <Field label="Email address" type="email" value={email} onChange={setEmail} placeholder="nurse@clinic.com" onEnter={handleNurseSignup} />
-              <Field
-                label="Password"
-                type={showPw ? "text" : "password"}
-                value={password}
-                onChange={setPassword}
-                placeholder="Nurse@123"
-                onEnter={handleNurseSignup}
-                suffix={
-                  <button onClick={() => setShowPw(!showPw)} style={eyeStyle}>
-                    {showPw ? "hide" : "show"}
-                  </button>
-                }
-              />
-              <Field label="Hospital" value={nurseHosp} onChange={setNurseHosp} placeholder="ChatAid Clinic" onEnter={handleNurseSignup} />
-              <Field label="Phone" value={nursePhone} onChange={setNursePhone} placeholder="9876543210" onEnter={handleNurseSignup} />
-              <Err msg={error} />
-              <button
-                onClick={handleNurseSignup}
-                disabled={loading}
-                style={{ ...tealBtn, marginTop: 16, opacity: loading ? 0.6 : 1, cursor: loading ? "not-allowed" : "pointer", color: "#34d399", border: "1px solid rgba(52,211,153,0.3)", background: "rgba(52,211,153,0.1)" }}
-              >
-                {loading ? <><Spinner /> Creating nurse...</> : "Create Nurse Account"}
-              </button>
             </>
           )}
 

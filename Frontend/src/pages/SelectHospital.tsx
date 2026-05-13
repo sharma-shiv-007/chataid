@@ -852,12 +852,8 @@ const SignupModal = ({ onClose }: { onClose: () => void }) => {
     if (!validate()) return;
     setLoading(true);
     try {
-      const endpoint = mode === "patient"
-        ? "http://localhost:5000/api/auth/signup/patient"
-        : "http://localhost:5000/api/auth/signup/doctor";
-      const body = mode === "patient"
-        ? { fullName: form.name, age: Number(form.age), gender, phone: form.phone, email: form.email, allergies: form.allergies, password: form.password }
-        : { fullName: form.name, phone: form.phone, email: form.email, specialisation: form.specialisation, yearsExp: Number(form.experience), medRegNo: form.regNo, hospital: form.hospital, bio: form.bio, password: form.password };
+      const endpoint = "http://localhost:5000/api/auth/signup/patient";
+      const body = { fullName: form.name, age: Number(form.age), gender, phone: form.phone, email: form.email, allergies: form.allergies, password: form.password };
       const res  = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) { setErrors({ email: data.error || "Signup failed. Please try again." }); return; }
@@ -908,7 +904,7 @@ const SignupModal = ({ onClose }: { onClose: () => void }) => {
             <button onClick={onClose} style={{ width:32, height:32, borderRadius:8, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", cursor:"pointer", color:"#64748b", display:"flex", alignItems:"center", justifyContent:"center" }}><X size={14}/></button>
           </div>
           <div style={{ display:"flex", gap:8, padding:"1rem 1.5rem 0" }}>
-            {(["patient","doctor"] as const).map(m => (
+            {(["patient"] as const).map(m => (
               <button key={m} onClick={() => setMode(m)} style={{
                 flex:1, padding:"9px", borderRadius:10,
                 background: mode===m ? accentBg : "rgba(255,255,255,0.03)",

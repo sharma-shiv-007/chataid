@@ -16,6 +16,7 @@ const NOTIFICATION_TYPES = [
   "reminder",
   "cancellation",
   "patient_choice",
+  "leave_request",
   "refund",
   "reschedule",
   "general",
