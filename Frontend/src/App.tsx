@@ -16,6 +16,10 @@ import EmergencyVoiceBooking from "./pages/EmergencyVoiceBooking";
 import SignupWizard from "./pages/SignupWizard";
 import BookAppointment from "./pages/BookAppointment";
 import PaymentPage from "./pages/PaymentPage";
+import LabOrder from "./pages/LabOrder";
+import LabDashboard from "./pages/LabDashboard";
+import LabReports from "./pages/LabReports";
+import LabAdmin from "./pages/LabAdmin";
 
 import PatientDashboard from "./pages/PatientDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -125,6 +129,30 @@ const App = () => (
             <Route path="/voice" element={
               <ProtectedRoute allowedRoles={["patient"]}>
                 <EmergencyVoiceBooking />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/lab/order" element={
+              <ProtectedRoute allowedRoles={["doctor"]}>
+                <LabOrder />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/lab/dashboard" element={
+              <ProtectedRoute allowedRoles={["admin", "nurse"]}>
+                <LabDashboard />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/lab/reports" element={
+              <ProtectedRoute allowedRoles={["patient"]}>
+                <LabReports />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/lab/admin" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <LabAdmin />
               </ProtectedRoute>
             } />
 

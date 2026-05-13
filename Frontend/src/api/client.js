@@ -130,4 +130,11 @@ export const api = {
       headers: headers(true),
       body: formData,
     }).then(handleRes),
+
+  uploadLabResults: (orderId, formData) =>
+    fetch(`${BASE}/lab/orders/${orderId}/results`, {
+      method: "PATCH",
+      headers: headers(true),
+      body: formData,
+    }).then(handleRes),
 };
