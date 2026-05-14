@@ -133,14 +133,14 @@ exports.markComplete = async (req, res) => {
         "Patient",
         "lab_result_ready",
         `Your lab results are ready for ${order.tests.join(", ")}.`,
-        "/dashboard"
+        "/lab/reports"
       ),
       createNotif(
         order.doctorId._id,
         "Doctor",
         "lab_result_ready",
         `Lab results are ready for ${order.patientId.name}: ${order.tests.join(", ")}.`,
-        "/doctor-dashboard"
+        "/lab/doctor-reports"
       ),
     ]);
 
@@ -148,6 +148,23 @@ exports.markComplete = async (req, res) => {
   } catch (err) {
     console.error("completeLabOrder:", err);
     res.status(500).json({ error: "Could not complete lab order." });
+  }
+};
+
+exports.getDoctorReports = async (req, res) => {
+  try {
+    const reports = await LabOrder.find({
+      doctorId: req.user.id,
+      status: "completed",
+    })
+      .populate("patientId", "name email phone age gender")
+      .populate("doctorId", "name email specialisation")
+      .sort({ completedAt: -1, updatedAt: -1 });
+
+    res.json({ reports });
+  } catch (err) {
+    console.error("getDoctorLabReports:", err);
+    res.status(500).json({ error: "Could not load lab reports." });
   }
 };
 

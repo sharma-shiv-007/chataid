@@ -28,6 +28,11 @@ const prescriptionSchema = new mongoose.Schema({
   advice:        { type: String, default: "" },
   followUpRemark:{ type: String, default: "" },
   followUpDate:  { type: Date },
+  needsLabTest:  { type: Boolean, default: false },
+  labTests:      { type: [String], default: [] },
+  labPriority:   { type: String, enum: ["Normal", "Urgent"], default: "Normal" },
+  labNotes:      { type: String, default: "" },
+  labOrderId:    { type: mongoose.Schema.Types.ObjectId, ref: "LabOrder" },
   issuedAt:      { type: Date, default: Date.now },
 }, { timestamps: true });
 

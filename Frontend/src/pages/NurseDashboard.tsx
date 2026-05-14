@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Activity, CheckCircle, LogOut, RefreshCw, Save, Stethoscope, UserRound } from "lucide-react";
+import { Activity, CheckCircle, FlaskConical, LogOut, RefreshCw, Save, Stethoscope, UserRound } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
 
@@ -117,9 +117,14 @@ export default function NurseDashboard() {
               <p className="text-slate-400 text-sm">{assignedDoctor.specialisation || "General"} · {assignedDoctor.email}</p>
             )}
           </div>
-          <button onClick={loadAppointments} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 text-sm font-semibold">
-            <RefreshCw size={15} /> Refresh
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => navigate("/lab/dashboard")} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-teal-500/30 text-teal-300 hover:bg-teal-500/10 text-sm font-semibold">
+              <FlaskConical size={15} /> Lab Dashboard
+            </button>
+            <button onClick={loadAppointments} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 text-sm font-semibold">
+              <RefreshCw size={15} /> Refresh
+            </button>
+          </div>
         </section>
 
         {loading ? (

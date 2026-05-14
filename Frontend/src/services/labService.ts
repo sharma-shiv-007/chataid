@@ -106,6 +106,11 @@ export const labService = {
     return data.reports;
   },
 
+  async getDoctorReports() {
+    const { data } = await labApi.get<{ reports: LabOrder[] }>("/lab/doctor/reports");
+    return data.reports;
+  },
+
   async getAdminStats(filters: Pick<LabOrderFilters, "date" | "department"> = {}) {
     const { data } = await labApi.get<{ stats: LabStats; departments: string[] }>(`/lab/admin/stats${queryString(filters)}`);
     return data;

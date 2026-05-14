@@ -5,6 +5,7 @@ const Doctor       = require("../models/doctor");
 const Appointment  = require("../models/appointment");
 const Prescription = require("../models/prescription");
 const ClinicalNote = require("../models/clinicalNote");
+const LabOrder     = require("../models/labOrder");
 const n8n          = require("../services/n8nService");
 const { createNotif } = require("../services/notificationService");
 
@@ -286,7 +287,18 @@ exports.updateVitals = async (req, res) => {
 // ── Prescriptions ──────────────────────────────────────────────────────────
 exports.writePrescription = async (req, res) => {
   try {
-    const { patientId, drugName, dose, frequency, duration, instructions, followUpRemark } = req.body;
+    const {
+      patientId,
+      drugName,
+      dose,
+      frequency,
+      duration,
+      instructions,
+      followUpRemark,
+      needsLabTest,
+      labPriority = "Normal",
+      labNotes = "",
+    } = req.body;
     const medications = Array.isArray(req.body.medications)
       ? req.body.medications
           .map((m) => ({
@@ -314,6 +326,17 @@ exports.writePrescription = async (req, res) => {
       return res.status(400).json({ error: `Dose and frequency are required for ${incomplete.name}.` });
     }
 
+    const labTests = Array.isArray(req.body.labTests)
+      ? req.body.labTests.map((test) => String(test || "").trim()).filter(Boolean)
+      : [];
+    const shouldCreateLabOrder = Boolean(needsLabTest) || labTests.length > 0;
+    if (shouldCreateLabOrder && !labTests.length) {
+      return res.status(400).json({ error: "Select at least one lab test." });
+    }
+    if (!["Normal", "Urgent"].includes(labPriority)) {
+      return res.status(400).json({ error: "labPriority must be Normal or Urgent." });
+    }
+
     const firstMedication = medications[0];
 
     const [rx, doctor] = await Promise.all([
@@ -328,9 +351,30 @@ exports.writePrescription = async (req, res) => {
         instructions: firstMedication.instructions,
         followUpRemark: followUpRemark || "",
         advice: followUpRemark || "",
+        needsLabTest: shouldCreateLabOrder,
+        labTests,
+        labPriority,
+        labNotes: String(labNotes || "").trim(),
       }),
-      Doctor.findById(req.user.id).select("name"),
+      Doctor.findById(req.user.id).select("name specialisation specialization"),
     ]);
+
+    let labOrder = null;
+    if (shouldCreateLabOrder) {
+      labOrder = await LabOrder.create({
+        patientId,
+        doctorId: req.user.id,
+        tests: labTests,
+        department: doctor?.specialisation || doctor?.specialization || "General",
+        priority: labPriority,
+        notes: String(labNotes || followUpRemark || "").trim(),
+      });
+      rx.labOrderId = labOrder._id;
+      await rx.save();
+      labOrder = await LabOrder.findById(labOrder._id)
+        .populate("patientId", "name email phone age gender")
+        .populate("doctorId", "name email specialisation specialization");
+    }
 
     const medSummary = medications.length === 1
       ? medications[0].name
@@ -356,7 +400,7 @@ exports.writePrescription = async (req, res) => {
       "/patient/dashboard"
     );
 
-    res.status(201).json({ prescription: rx });
+    res.status(201).json({ prescription: rx, labOrder });
   } catch (err) {
     console.error("writePrescription:", err);
     res.status(500).json({ error: "Could not save prescription." });

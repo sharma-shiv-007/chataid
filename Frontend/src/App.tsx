@@ -20,6 +20,7 @@ import LabOrder from "./pages/LabOrder";
 import LabDashboard from "./pages/LabDashboard";
 import LabReports from "./pages/LabReports";
 import LabAdmin from "./pages/LabAdmin";
+import DoctorLabReports from "./pages/DoctorLabReports";
 
 import PatientDashboard from "./pages/PatientDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -147,6 +148,12 @@ const App = () => (
             <Route path="/lab/reports" element={
               <ProtectedRoute allowedRoles={["patient"]}>
                 <LabReports />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/lab/doctor-reports" element={
+              <ProtectedRoute allowedRoles={["doctor"]}>
+                <DoctorLabReports />
               </ProtectedRoute>
             } />
 

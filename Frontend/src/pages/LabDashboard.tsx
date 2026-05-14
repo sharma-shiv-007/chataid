@@ -13,16 +13,22 @@ export default function LabDashboard() {
   const [activeOrder, setActiveOrder] = useState<LabOrder | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const loadOrders = () => {
-    setLoading(true);
+  const loadOrders = (showLoading = true) => {
+    if (showLoading) setLoading(true);
     setError("");
     labService.getOrders({ status: "pending,in_progress" })
       .then(setOrders)
       .catch(err => setError(err?.message || "Could not load lab orders."))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (showLoading) setLoading(false);
+      });
   };
 
-  useEffect(loadOrders, []);
+  useEffect(() => {
+    loadOrders();
+    const timer = window.setInterval(() => loadOrders(false), 8000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const replaceOrder = (updated: LabOrder) =>
     setOrders(prev => updated.status === "completed"
@@ -60,7 +66,7 @@ export default function LabDashboard() {
               <h1 className="text-xl font-bold">Pending Lab Orders</h1>
               <p className="text-sm text-slate-400 mt-1">Enter results, upload PDFs, and complete orders.</p>
             </div>
-            <button onClick={loadOrders} className="border border-teal-500/30 text-teal-300 hover:bg-teal-500/10 rounded-xl px-4 py-2 text-sm font-semibold">
+            <button onClick={() => loadOrders()} className="border border-teal-500/30 text-teal-300 hover:bg-teal-500/10 rounded-xl px-4 py-2 text-sm font-semibold">
               Refresh
             </button>
           </div>

@@ -355,6 +355,22 @@ export default function AdminDashboard() {
               ))}
             </div>
 
+            <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 mb-7">
+              <h3 className="text-white font-bold mb-4">Lab Management</h3>
+              <div className="grid md:grid-cols-2 gap-3">
+                <button onClick={() => navigate("/lab/admin")}
+                  className="text-left bg-teal-600/15 hover:bg-teal-600/25 border border-teal-500/30 rounded-xl p-4 transition">
+                  <p className="text-teal-300 font-bold text-sm">Lab Admin</p>
+                  <p className="text-slate-400 text-xs mt-1">Manage tests, pricing, and lab settings.</p>
+                </button>
+                <button onClick={() => navigate("/lab/dashboard")}
+                  className="text-left bg-blue-600/15 hover:bg-blue-600/25 border border-blue-500/30 rounded-xl p-4 transition">
+                  <p className="text-blue-300 font-bold text-sm">Lab Dashboard</p>
+                  <p className="text-slate-400 text-xs mt-1">Monitor orders, processing status, and results.</p>
+                </button>
+              </div>
+            </div>
+
             <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5">
               <h3 className="text-white font-bold mb-4">Department Load</h3>
               {[

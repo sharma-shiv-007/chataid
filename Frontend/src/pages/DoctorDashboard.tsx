@@ -6,7 +6,7 @@ import {
   HeartPulse, Search, User, Activity, Heart, Thermometer,
   LogOut, AlertCircle, X, Save, Upload, Clock, Pill,
   StickyNote, Calendar, CheckCircle, Loader, Trash2, Plus,
-  Check, Bell,
+  Check, Bell, FlaskConical,
 } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -78,6 +78,19 @@ const MEDICINES: Record<string, string[]> = {
   Y: ["Yeast Saccharomyces"],
   Z: ["Zidovudine", "Zinc Sulfate", "Zolpidem"],
 };
+
+const LAB_TESTS = [
+  "CBC",
+  "Blood Sugar",
+  "Liver Function",
+  "Kidney Function",
+  "Lipid Profile",
+  "Thyroid Profile",
+  "Urine Routine",
+  "HbA1c",
+  "Electrolytes",
+  "CRP",
+];
 
 type MedicineDraft = {
   name: string;
@@ -383,6 +396,11 @@ function PrescriptionModal({ patient, onClose, onSaved }: { patient: any; onClos
   const [selectedNames, setSelectedNames] = useState<string[]>([]);
   const [medicines, setMedicines] = useState<MedicineDraft[]>([]);
   const [followUpRemark, setFollowUpRemark] = useState("");
+  const [needsLabTest, setNeedsLabTest] = useState(false);
+  const [labTests, setLabTests] = useState<string[]>([]);
+  const [labPriority, setLabPriority] = useState<"Normal" | "Urgent">("Normal");
+  const [labNotes, setLabNotes] = useState("");
+  const [labOrderCreated, setLabOrderCreated] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -419,6 +437,10 @@ function PrescriptionModal({ patient, onClose, onSaved }: { patient: any; onClos
     setMedicines(prev => prev.filter((_, i) => i !== index));
   };
 
+  const toggleLabTest = (test: string) => {
+    setLabTests(prev => prev.includes(test) ? prev.filter(item => item !== test) : [...prev, test]);
+  };
+
   const handleSave = async () => {
     setError("");
     if (!medicines.length) {
@@ -431,16 +453,25 @@ function PrescriptionModal({ patient, onClose, onSaved }: { patient: any; onClos
       setError(`Dose and frequency are required for ${incomplete.name}.`);
       return;
     }
+    if (needsLabTest && !labTests.length) {
+      setError("Select at least one lab test.");
+      return;
+    }
 
     setSaving(true);
     try {
-      await api.post("/doctor/prescriptions", {
+      const data = await api.post("/doctor/prescriptions", {
         patientId: patient._id,
         medications: medicines,
         followUpRemark,
+        needsLabTest,
+        labTests: needsLabTest ? labTests : [],
+        labPriority,
+        labNotes,
       });
+      setLabOrderCreated(Boolean(data?.labOrder));
       setSuccess(true);
-      setTimeout(() => { onSaved?.(); onClose(); }, 1200);
+      setTimeout(() => { onSaved?.(); onClose(); }, needsLabTest ? 1600 : 1200);
     } catch (err: any) {
       setError(err?.message || "Failed to save prescription.");
     } finally {
@@ -452,7 +483,7 @@ function PrescriptionModal({ patient, onClose, onSaved }: { patient: any; onClos
     <Overlay onClose={onClose}>
       <ModalShell title="Write Prescription" subtitle={`For: ${patient?.name}`} onClose={onClose} maxWidth={760} color={C.purple}>
         <div style={{ padding: "1.25rem 1.5rem", display: "flex", flexDirection: "column", gap: 14, maxHeight: "72vh", overflowY: "auto" }}>
-          {success ? <SuccessState msg="Prescription saved!" /> : (
+          {success ? <SuccessState msg={labOrderCreated ? "Prescription saved and lab order created!" : "Prescription saved!"} /> : (
             <>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                 <div>
@@ -575,12 +606,84 @@ function PrescriptionModal({ patient, onClose, onSaved }: { patient: any; onClos
                   rows={3} style={{ ...inp(), resize: "vertical", lineHeight: 1.5 }} />
               </div>
 
+              <div style={{ border: `1px solid ${needsLabTest ? C.cyanBdr : C.borderMid}`, borderRadius: 14, padding: 12, background: needsLabTest ? C.cyanBg : "rgba(255,255,255,0.02)" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", color: C.text, fontSize: 13, fontWeight: 800 }}>
+                  <input
+                    type="checkbox"
+                    checked={needsLabTest}
+                    onChange={e => {
+                      const checked = e.target.checked;
+                      setNeedsLabTest(checked);
+                      if (!checked) {
+                        setLabTests([]);
+                        setLabPriority("Normal");
+                        setLabNotes("");
+                      }
+                    }}
+                  />
+                  <FlaskConical size={15} color={needsLabTest ? C.cyan : C.dim} />
+                  Needs Lab Test
+                </label>
+
+                {needsLabTest && (
+                  <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div>
+                      <label style={sectionLabel}>Select tests</label>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 8 }}>
+                        {LAB_TESTS.map(test => {
+                          const selected = labTests.includes(test);
+                          return (
+                            <button key={test} type="button" onClick={() => toggleLabTest(test)}
+                              style={{
+                                borderRadius: 10, padding: "9px 10px", cursor: "pointer",
+                                border: `1px solid ${selected ? C.cyanBdr : C.borderMid}`,
+                                background: selected ? C.cyanBg : "rgba(15,23,42,0.7)",
+                                color: selected ? C.cyan : C.text,
+                                fontSize: 12, fontWeight: 800, textAlign: "left",
+                                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+                              }}>
+                              {test}
+                              {selected && <Check size={13} />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={sectionLabel}>Priority</label>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        {(["Normal", "Urgent"] as const).map(priority => {
+                          const selected = labPriority === priority;
+                          const color = priority === "Urgent" ? C.red : C.cyan;
+                          const bg = priority === "Urgent" ? C.redBg : C.cyanBg;
+                          const bdr = priority === "Urgent" ? C.redBdr : C.cyanBdr;
+                          return (
+                            <button key={priority} type="button" onClick={() => setLabPriority(priority)}
+                              style={{ borderRadius: 10, padding: "8px 10px", cursor: "pointer", border: `1px solid ${selected ? bdr : C.borderMid}`, background: selected ? bg : "rgba(15,23,42,0.7)", color: selected ? color : C.dim, fontSize: 12, fontWeight: 800 }}>
+                              {priority}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={sectionLabel}>Lab notes</label>
+                      <textarea value={labNotes} onChange={e => setLabNotes(e.target.value)}
+                        placeholder="Clinical context, fasting instructions, suspected diagnosis..."
+                        rows={2} style={{ ...inp(), resize: "vertical", lineHeight: 1.5 }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {error && <ErrorBox msg={error} />}
             </>
           )}
         </div>
         {!success && (
-          <ModalFooter onCancel={onClose} onConfirm={handleSave} loading={saving} confirmLabel="Save Prescription"
+          <ModalFooter onCancel={onClose} onConfirm={handleSave} loading={saving} confirmLabel={needsLabTest ? "Save & Order Lab" : "Save Prescription"}
             icon={<Pill size={13} />} color={C.purple} colorBg={C.purpleBg} colorBdr={C.purpleBdr} />
         )}
       </ModalShell>
@@ -1242,6 +1345,7 @@ function ActionTab({ title, icon: Icon, color, colorBg, colorBdr, ModalComponent
   colorBg: string; colorBdr: string;
   ModalComponent: React.ComponentType<any>; actionLabel: string;
 }) {
+  const navigate = useNavigate();
   const [patients, setPatients] = useState<any[]>([]);
   const [selected, setSelected] = useState<any>(null);
   const [search,   setSearch]   = useState("");
@@ -1271,10 +1375,18 @@ function ActionTab({ title, icon: Icon, color, colorBg, colorBdr, ModalComponent
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2 style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{title}</h2>
         {selected && (
-          <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => setModal(true)}
-            style={{ background: colorBg, border: `1px solid ${colorBdr}`, color, padding: "8px 16px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>
-            <Icon size={13} /> {actionLabel} for {selected.name}
-          </motion.button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => setModal(true)}
+              style={{ background: colorBg, border: `1px solid ${colorBdr}`, color, padding: "8px 16px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>
+              <Icon size={13} /> {actionLabel} for {selected.name}
+            </motion.button>
+            {actionLabel === "Write Prescription" && (
+              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => navigate("/lab/order")}
+                style={{ background: C.cyanBg, border: `1px solid ${C.cyanBdr}`, color: C.cyan, padding: "8px 16px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>
+                <FlaskConical size={13} /> Order Lab Test
+              </motion.button>
+            )}
+          </div>
         )}
       </div>
 
@@ -1418,6 +1530,10 @@ export default function DoctorDashboard() {
           {user?.name && (
             <span style={{ fontSize: 12, color: C.dim }}>{formatDoctorName(user.name)}</span>
           )}
+          <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => navigate("/lab/doctor-reports")}
+            style={{ display: "flex", alignItems: "center", gap: 6, background: C.cyanBg, border: `1px solid ${C.cyanBdr}`, color: C.cyan, padding: "6px 12px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }}>
+            <FlaskConical size={13} /> Lab Results
+          </motion.button>
           <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={handleLogout}
             style={{ display: "flex", alignItems: "center", gap: 6, background: C.redBg, border: `1px solid ${C.redBdr}`, color: C.red, padding: "6px 12px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: 600, fontFamily: "inherit" }}>
             <LogOut size={13} /> Sign out

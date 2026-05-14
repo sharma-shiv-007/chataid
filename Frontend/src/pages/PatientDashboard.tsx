@@ -768,6 +768,7 @@ export default function PatientDashboard() {
                     { label: "My Prescriptions", icon: Pill,     color: VIOLET, action: () => setActiveTab("prescriptions") },
                     { label: "Doctor Notes",     icon: ClipboardList, color: GREEN, action: () => setActiveTab("notes") },
                     { label: "My Reports",       icon: FileText, color: ORANGE, action: () => setActiveTab("reports") },
+                    { label: "My Lab Reports",   icon: FlaskConical, color: GREEN, action: () => navigate("/lab/reports") },
                   ].map(({ label, icon: Icon, color, action }) => (
                     <button key={label} onClick={action}
                       style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, background: `${color}08`, border: `1px solid ${color}20`, borderRadius: 12, padding: "14px 10px", cursor: "pointer" }}
