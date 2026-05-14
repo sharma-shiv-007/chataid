@@ -6,6 +6,31 @@ const Appointment  = require("../models/appointment");
 
 const getId = (req) => req.user.id;
 
+const prescriptionSignature = (rx) => JSON.stringify({
+  doctorId: String(rx.doctorId?._id || rx.doctorId || ""),
+  medications: (rx.medications?.length
+    ? rx.medications
+    : [{ name: rx.drugName, dose: rx.dose, frequency: rx.frequency, duration: rx.duration, instructions: rx.instructions }]
+  ).map((m) => ({
+    name: String(m.name || "").trim().toLowerCase(),
+    dose: String(m.dose || "").trim().toLowerCase(),
+    frequency: String(m.frequency || "").trim().toLowerCase(),
+    duration: String(m.duration || "").trim().toLowerCase(),
+    instructions: String(m.instructions || "").trim().toLowerCase(),
+  })),
+  followUpRemark: String(rx.followUpRemark || rx.advice || "").trim().toLowerCase(),
+});
+
+const dedupePrescriptions = (prescriptions) => {
+  const seen = new Set();
+  return prescriptions.filter((rx) => {
+    const sig = prescriptionSignature(rx);
+    if (seen.has(sig)) return false;
+    seen.add(sig);
+    return true;
+  });
+};
+
 // ── GET /api/patient/me ────────────────────────────────────────────────────
 exports.getMe = async (req, res) => {
   try {
@@ -45,7 +70,7 @@ exports.getDashboard = async (req, res) => {
     // Reports are stored on the patient document (strict:false)
     const reports = (patient.reports || []).slice().reverse().slice(0, 10);
 
-    res.json({ patient, prescriptions, notes, reports, appointments });
+    res.json({ patient, prescriptions: dedupePrescriptions(prescriptions), notes, reports, appointments });
   } catch (err) {
     console.error("getDashboard error:", err);
     res.status(500).json({ error: "Could not fetch dashboard data." });
@@ -94,7 +119,7 @@ exports.getMyPrescriptions = async (req, res) => {
     const prescriptions = await Prescription.find({ patientId: getId(req) })
       .populate("doctorId", "name specialization")
       .sort({ createdAt: -1 });
-    res.json({ prescriptions });
+    res.json({ prescriptions: dedupePrescriptions(prescriptions) });
   } catch (err) {
     console.error("getMyPrescriptions error:", err);
     res.status(500).json({ error: "Could not fetch prescriptions." });

@@ -39,6 +39,18 @@ const todayAppointmentFilter = (doctorId) => ({
   ],
 });
 
+const prescriptionSignature = ({ medications = [], followUpRemark = "" }) =>
+  JSON.stringify({
+    medications: medications.map((m) => ({
+      name: String(m.name || "").trim().toLowerCase(),
+      dose: String(m.dose || "").trim().toLowerCase(),
+      frequency: String(m.frequency || "").trim().toLowerCase(),
+      duration: String(m.duration || "").trim().toLowerCase(),
+      instructions: String(m.instructions || "").trim().toLowerCase(),
+    })),
+    followUpRemark: String(followUpRemark || "").trim().toLowerCase(),
+  });
+
 const doctorAppointmentFilter = (doctorId) => ({
   $or: [
     { doctorId },
@@ -338,6 +350,25 @@ exports.writePrescription = async (req, res) => {
     }
 
     const firstMedication = medications[0];
+    const recentDuplicateWindow = new Date(Date.now() - 60 * 1000);
+    const recentPrescriptions = await Prescription.find({
+      patientId,
+      doctorId: req.user.id,
+      createdAt: { $gte: recentDuplicateWindow },
+    }).sort({ createdAt: -1 });
+    const nextSignature = prescriptionSignature({ medications, followUpRemark });
+    const duplicateRx = recentPrescriptions.find((rx) =>
+      prescriptionSignature({
+        medications: rx.medications?.length
+          ? rx.medications
+          : [{ name: rx.drugName, dose: rx.dose, frequency: rx.frequency, duration: rx.duration, instructions: rx.instructions }],
+        followUpRemark: rx.followUpRemark || rx.advice,
+      }) === nextSignature
+    );
+
+    if (duplicateRx) {
+      return res.status(200).json({ prescription: duplicateRx, duplicate: true });
+    }
 
     const [rx, doctor] = await Promise.all([
       Prescription.create({

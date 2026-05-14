@@ -2,6 +2,7 @@ const LabOrder = require("../models/labOrder");
 const Patient = require("../models/patient");
 const Doctor = require("../models/doctor");
 const { createNotif } = require("../services/notificationService");
+const { generateLabReportPdf } = require("../services/labReportPdfService");
 
 exports.createOrder = async (req, res) => {
   try {
@@ -71,6 +72,43 @@ exports.getOrders = async (req, res) => {
   }
 };
 
+exports.getMyBills = async (req, res) => {
+  try {
+    const bills = await LabOrder.find({ patientId: req.user.id })
+      .populate("patientId", "name email phone age gender")
+      .populate("doctorId", "name email specialisation")
+      .sort({ createdAt: -1 });
+
+    res.json({ bills });
+  } catch (err) {
+    console.error("getMyLabBills:", err);
+    res.status(500).json({ error: "Could not load lab bills." });
+  }
+};
+
+exports.payBill = async (req, res) => {
+  try {
+    const { method = "online" } = req.body;
+    const paymentStatus = method === "cash" ? "cash_paid" : "paid_online";
+    const paymentMethod = method === "cash" ? "cash" : "online";
+
+    const order = await LabOrder.findOneAndUpdate(
+      { _id: req.params.id, patientId: req.user.id },
+      { paymentStatus, paymentMethod, paidAt: new Date() },
+      { new: true }
+    )
+      .populate("patientId", "name email phone age gender")
+      .populate("doctorId", "name email specialisation");
+
+    if (!order) return res.status(404).json({ error: "Lab bill not found." });
+
+    res.json({ bill: order });
+  } catch (err) {
+    console.error("payLabBill:", err);
+    res.status(500).json({ error: "Could not update lab bill payment." });
+  }
+};
+
 exports.saveResults = async (req, res) => {
   try {
     const { id } = req.params;
@@ -117,15 +155,22 @@ exports.saveResults = async (req, res) => {
 
 exports.markComplete = async (req, res) => {
   try {
-    const order = await LabOrder.findByIdAndUpdate(
-      req.params.id,
-      { status: "completed", completedAt: new Date() },
-      { new: true }
-    )
+    let order = await LabOrder.findById(req.params.id)
       .populate("patientId", "name email phone")
-      .populate("doctorId", "name email specialisation");
+      .populate("doctorId", "name email specialisation specialization hospital");
 
     if (!order) return res.status(404).json({ error: "Lab order not found." });
+
+    order.status = "completed";
+    order.completedAt = new Date();
+
+    const report = await generateLabReportPdf(order);
+    order.resultPdfUrl = `${req.protocol}://${req.get("host")}/uploads/${report.filename}`;
+    await order.save();
+
+    order = await LabOrder.findById(order._id)
+      .populate("patientId", "name email phone age gender")
+      .populate("doctorId", "name email specialisation specialization hospital");
 
     await Promise.all([
       createNotif(

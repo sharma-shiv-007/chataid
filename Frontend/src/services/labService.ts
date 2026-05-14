@@ -41,6 +41,11 @@ export interface LabOrder {
   department?: string;
   priority: LabPriority;
   status: LabStatus;
+  billItems?: Array<{ testName: string; price: number }>;
+  billAmount?: number;
+  paymentStatus?: "unpaid" | "paid_online" | "cash_paid";
+  paymentMethod?: string;
+  paidAt?: string;
   notes?: string;
   results?: LabResult[];
   resultPdfUrl?: string;
@@ -87,6 +92,16 @@ export const labService = {
   async getOrders(filters: LabOrderFilters = {}) {
     const { data } = await labApi.get<{ orders: LabOrder[] }>(`/lab/orders${queryString(filters)}`);
     return data.orders;
+  },
+
+  async getBills() {
+    const { data } = await labApi.get<{ bills: LabOrder[] }>("/lab/bills");
+    return data.bills;
+  },
+
+  async payBill(orderId: string, method: "online" | "cash") {
+    const { data } = await labApi.patch<{ bill: LabOrder }>(`/lab/bills/${orderId}/pay`, { method });
+    return data.bill;
   },
 
   async updateResult(orderId: string, formData: FormData) {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CheckCircle, ChevronLeft, CreditCard, Loader, WalletCards } from "lucide-react";
 import { api } from "../api/client";
+import { labService } from "../services/labService";
 
 const C = {
   bg: "#020817",
@@ -23,7 +24,8 @@ type Step = "select" | "processing" | "success";
 export default function PaymentPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { doctorName, specialty, amount, appointmentData } = (location.state || {}) as any;
+  const { doctorName, specialty, amount, appointmentData, paymentFor, labBill } = (location.state || {}) as any;
+  const isLabPayment = paymentFor === "lab" && labBill?._id;
 
   const [selectedMethod, setSelectedMethod] = useState("");
   const [step, setStep] = useState<Step>("select");
@@ -31,7 +33,13 @@ export default function PaymentPage() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [loadingWallet, setLoadingWallet] = useState(true);
 
-  const fee = Number(amount) > 0 ? Number(amount) : 500;
+  const fee = Number(amount) > 0 ? Number(amount) : isLabPayment ? Number(labBill?.billAmount) || 0 : 500;
+  const paymentTitle = isLabPayment ? "Lab Bill Payment" : "ChatAid Clinic Payment";
+  const paymentDescription = isLabPayment ? "Secure Demo Lab Payment Gateway" : "Secure Demo Payment Gateway";
+  const successTitle = isLabPayment ? "Lab Bill Paid!" : "Payment Successful!";
+  const successSubtitle = isLabPayment
+    ? `Lab tests: ${(labBill?.tests || []).join(", ")}`
+    : `Appointment booked with ${doctorName || "your doctor"}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -87,7 +95,7 @@ export default function PaymentPage() {
       return;
     }
 
-    if (!appointmentData?.doctorId || !appointmentData?.dateKey || !appointmentData?.time) {
+    if (!isLabPayment && (!appointmentData?.doctorId || !appointmentData?.dateKey || !appointmentData?.time)) {
       setError("Appointment details are missing. Please start booking again.");
       return;
     }
@@ -100,18 +108,24 @@ export default function PaymentPage() {
         if (selectedMethod === "wallet") {
           const walletData = await api.post("/cancellation/wallet/deduct", {
             amount: fee,
-            description: `Payment for appointment with ${doctorName || "doctor"}`,
+            description: isLabPayment
+              ? `Payment for lab tests: ${(labBill?.tests || []).join(", ")}`
+              : `Payment for appointment with ${doctorName || "doctor"}`,
             appointmentId: null,
           });
           setWalletBalance(Number(walletData.newBalance) || 0);
         }
 
-        await api.post("/appointments/book", {
-          ...appointmentData,
-          paymentStatus: "paid",
-          paymentMethod: selectedMethod,
-          consultationFee: fee,
-        });
+        if (isLabPayment) {
+          await labService.payBill(labBill._id, "online");
+        } else {
+          await api.post("/appointments/book", {
+            ...appointmentData,
+            paymentStatus: "paid",
+            paymentMethod: selectedMethod,
+            consultationFee: fee,
+          });
+        }
 
         setStep("success");
         window.setTimeout(() => navigate("/dashboard"), 1800);
@@ -140,9 +154,9 @@ export default function PaymentPage() {
       <div style={{ minHeight: "100vh", background: C.bg, color: C.text, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "system-ui, sans-serif" }}>
         <div style={{ textAlign: "center", padding: 24 }}>
           <CheckCircle size={72} color={C.green} style={{ margin: "0 auto 20px" }} />
-          <h2 style={{ fontSize: 30, fontWeight: 900, color: C.green, marginBottom: 8 }}>Payment Successful!</h2>
+          <h2 style={{ fontSize: 30, fontWeight: 900, color: C.green, marginBottom: 8 }}>{successTitle}</h2>
           <p style={{ color: C.text, marginBottom: 6 }}>INR {fee} paid via {selectedMethod}</p>
-          <p style={{ color: C.dim }}>Appointment booked with {doctorName || "your doctor"}</p>
+          <p style={{ color: C.dim }}>{successSubtitle}</p>
           {selectedMethod === "wallet" && (
             <p style={{ color: C.green, marginTop: 10, fontSize: 13, fontWeight: 700 }}>
               Wallet balance updated: INR {walletBalance} remaining
@@ -158,13 +172,23 @@ export default function PaymentPage() {
     <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, fontFamily: "system-ui, sans-serif", color: C.text }}>
       <div style={{ width: "100%", maxWidth: 460, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 18, boxShadow: "0 28px 90px rgba(0,0,0,0.45)", overflow: "hidden" }}>
         <div style={{ background: C.blue, padding: "18px 20px" }}>
-          <h2 style={{ fontSize: 20, fontWeight: 900 }}>ChatAid Clinic Payment</h2>
-          <p style={{ color: "#bfdbfe", fontSize: 13, marginTop: 4 }}>Secure Demo Payment Gateway</p>
+          <h2 style={{ fontSize: 20, fontWeight: 900 }}>{paymentTitle}</h2>
+          <p style={{ color: "#bfdbfe", fontSize: 13, marginTop: 4 }}>{paymentDescription}</p>
         </div>
 
         <div style={{ padding: 20, borderBottom: `1px solid ${C.border}` }}>
-          <SummaryRow label="Doctor" value={doctorName || "Doctor"} />
-          <SummaryRow label="Specialty" value={specialty || "General"} />
+          {isLabPayment ? (
+            <>
+              <SummaryRow label="Tests" value={(labBill?.tests || []).join(", ") || "Lab tests"} />
+              <SummaryRow label="Doctor" value={`Dr. ${labBill?.doctorId?.name || "Doctor"}`} />
+              <SummaryRow label="Status" value={labBill?.paymentStatus === "cash_paid" ? "Cash paid" : labBill?.paymentStatus === "paid_online" ? "Paid online" : "Unpaid"} />
+            </>
+          ) : (
+            <>
+              <SummaryRow label="Doctor" value={doctorName || "Doctor"} />
+              <SummaryRow label="Specialty" value={specialty || "General"} />
+            </>
+          )}
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
             <span style={{ fontWeight: 900, fontSize: 17 }}>Total Amount</span>
             <span style={{ color: C.green, fontWeight: 900, fontSize: 26 }}>INR {fee}</span>

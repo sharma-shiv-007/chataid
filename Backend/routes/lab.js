@@ -5,6 +5,8 @@ const upload = require("../middleware/upload");
 const ctrl = require("../controllers/labController");
 
 router.post("/orders", auth, allow("doctor"), ctrl.createOrder);
+router.get("/bills", auth, allow("patient"), ctrl.getMyBills);
+router.patch("/bills/:id/pay", auth, allow("patient"), ctrl.payBill);
 router.get("/reports", auth, allow("patient"), ctrl.getMyReports);
 router.get("/doctor/reports", auth, allow("doctor"), ctrl.getDoctorReports);
 router.get("/admin/stats", auth, allow("admin"), ctrl.getAdminStats);

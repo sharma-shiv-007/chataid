@@ -7,12 +7,13 @@ import {
   Pill, Shield, Zap, LogOut, AlertCircle, Clock, Droplets,
   Phone, MapPin, Calendar, Stethoscope, Edit2, Check, X,
   Lock, ChevronRight, AlertTriangle, Mic, FileText, Upload,
-  Bell, ClipboardList,
+  Bell, ClipboardList, CreditCard,
   WalletCards,
 } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import RefundRescheduleModal from "../components/RefundRescheduleModal";
+import { labService, type LabOrder } from "../services/labService";
 
 // ─── Design tokens ─────────────────────────────────────────────────────────
 const CYAN     = "#06b6d4";
@@ -304,6 +305,63 @@ function WalletCard({ wallet }: { wallet: any }) {
   );
 }
 
+function LabBillsCard({ bills, onPay }: { bills: LabOrder[]; onPay: (bill: LabOrder, method: "online" | "cash") => void }) {
+  const recentBills = bills.slice(0, 5);
+  return (
+    <motion.div {...fadeUp(0.04)} style={{ ...card, marginBottom: "1rem" }}>
+      <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${CYAN}, transparent)` }} />
+      <div style={{ padding: "1.25rem" }}>
+        <SectionHeader icon={FlaskConical} title="Lab Bills" color={CYAN} />
+        {recentBills.length === 0 ? (
+          <p style={{ color: TEXT_DIM, fontSize: 12 }}>No lab bills yet.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {recentBills.map(bill => {
+              const paid = bill.paymentStatus === "paid_online" || bill.paymentStatus === "cash_paid";
+              return (
+                <div key={bill._id} style={{ background: "rgba(6,182,212,0.05)", border: `1px solid ${paid ? "rgba(16,185,129,0.22)" : CYAN_BDR}`, borderRadius: 12, padding: "12px 14px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 800, color: TEXT }}>{bill.tests.join(", ")}</p>
+                      <p style={{ fontSize: 11, color: TEXT_DIM, marginTop: 3 }}>Dr. {bill.doctorId?.name || "Doctor"}</p>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <p style={{ fontSize: 18, color: paid ? GREEN : CYAN, fontWeight: 900 }}>INR {bill.billAmount || 0}</p>
+                      <p style={{ fontSize: 10, color: paid ? GREEN : AMBER, fontWeight: 800, textTransform: "uppercase" }}>
+                        {bill.paymentStatus === "paid_online" ? "Paid online" : bill.paymentStatus === "cash_paid" ? "Cash paid" : "Unpaid"}
+                      </p>
+                    </div>
+                  </div>
+                  {bill.billItems?.length ? (
+                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+                      {bill.billItems.map(item => (
+                        <div key={item.testName} style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 11, color: TEXT_DIM }}>
+                          <span>{item.testName}</span>
+                          <span>INR {item.price}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {!paid && (
+                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                      <button onClick={() => onPay(bill, "online")} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: CYAN_BG, border: `1px solid ${CYAN_BDR}`, color: CYAN, padding: "8px", borderRadius: 10, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+                        <CreditCard size={13} /> Pay Online
+                      </button>
+                      <button onClick={() => onPay(bill, "cash")} style={{ flex: 1, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", color: GREEN, padding: "8px", borderRadius: 10, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+                        Mark Cash Paid
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 export default function PatientDashboard() {
   const navigate   = useNavigate();
   const { logout } = useAuth();
@@ -312,6 +370,7 @@ export default function PatientDashboard() {
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [notes,         setNotes]         = useState<any[]>([]);
   const [reports,       setReports]       = useState<any[]>([]);
+  const [labBills,      setLabBills]      = useState<LabOrder[]>([]);
   const [appointments,  setAppointments]  = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [wallet,        setWallet]        = useState<any>({ balance: 0, transactions: [] });
@@ -332,10 +391,11 @@ export default function PatientDashboard() {
     const loadDashboard = async (showLoader = false) => {
       try {
         if (showLoader) setLoading(true);
-        const [data, walletData, notificationData] = await Promise.all([
+        const [data, walletData, notificationData, labBillData] = await Promise.all([
           api.getDashboard(),
           api.get("/cancellation/wallet").catch(() => ({ wallet: { balance: 0, transactions: [] } })),
           api.get("/notifications").catch(() => ({ notifications: [] })),
+          labService.getBills().catch(() => []),
         ]);
         if (!cancelled) {
           setPatient(data.patient);
@@ -345,6 +405,7 @@ export default function PatientDashboard() {
           setAppointments(sortAppointmentsNewestFirst(data.appointments || []));
           setNotifications(notificationData.notifications || []);
           setWallet(walletData.wallet || { balance: 0, transactions: [] });
+          setLabBills(labBillData || []);
         }
       } catch (err: any) {
         if (!cancelled) {
@@ -390,6 +451,26 @@ export default function PatientDashboard() {
     logout();
     localStorage.removeItem("medicare_patient");
     navigate("/", { replace: true });
+  };
+
+  const payLabBill = async (bill: LabOrder, method: "online" | "cash") => {
+    if (method === "online") {
+      navigate("/payment", {
+        state: {
+          paymentFor: "lab",
+          amount: bill.billAmount || 0,
+          labBill: bill,
+        },
+      });
+      return;
+    }
+
+    try {
+      const updated = await labService.payBill(bill._id, method);
+      setLabBills(prev => prev.map(item => item._id === updated._id ? updated : item));
+    } catch (err: any) {
+      alert(err?.message || "Could not update lab bill payment.");
+    }
   };
 
   // ── Derived ──────────────────────────────────────────────────────────────
@@ -612,6 +693,7 @@ export default function PatientDashboard() {
         {activeTab === "overview" && (
           <>
             <WalletCard wallet={wallet} />
+            <LabBillsCard bills={labBills} onPay={payLabBill} />
 
             {/* Profile + Medical */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>

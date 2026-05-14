@@ -28,13 +28,21 @@ export default function LabAdmin() {
   const orders = ordersQuery.data || [];
   const stats = statsQuery.data?.stats || { total: 0, pending: 0, completed: 0, urgent: 0 };
   const departments = statsQuery.data?.departments || [];
+  const totalBilled = orders.reduce((sum, order) => sum + Number(order.billAmount || 0), 0);
+  const paidBilled = orders.reduce((sum, order) =>
+    ["paid_online", "cash_paid"].includes(order.paymentStatus || "")
+      ? sum + Number(order.billAmount || 0)
+      : sum,
+  0);
 
   const exportCsv = () => {
     const rows = [
-      ["Patient", "Tests", "Priority", "Status", "Doctor", "Department", "Date"],
+      ["Patient", "Tests", "Bill Amount", "Payment Status", "Priority", "Status", "Doctor", "Department", "Date"],
       ...orders.map(order => [
         order.patientId?.name || "Patient",
         order.tests.join("; "),
+        order.billAmount || 0,
+        order.paymentStatus || "unpaid",
         order.priority,
         order.status,
         order.doctorId?.name || "Doctor",
@@ -71,8 +79,8 @@ export default function LabAdmin() {
           {[
             { label: "Total Orders", value: stats.total, color: "text-white" },
             { label: "Pending", value: stats.pending, color: "text-yellow-300" },
-            { label: "Completed", value: stats.completed, color: "text-green-300" },
-            { label: "Urgent", value: stats.urgent, color: "text-red-300" },
+            { label: "Billed", value: `INR ${totalBilled}`, color: "text-teal-300" },
+            { label: "Paid", value: `INR ${paidBilled}`, color: "text-green-300" },
           ].map(card => (
             <div key={card.label} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{card.label}</p>
@@ -113,6 +121,8 @@ export default function LabAdmin() {
                   <tr>
                     <th className="px-4 py-3 text-left font-semibold">Patient</th>
                     <th className="px-4 py-3 text-left font-semibold">Tests</th>
+                    <th className="px-4 py-3 text-left font-semibold">Bill</th>
+                    <th className="px-4 py-3 text-left font-semibold">Payment</th>
                     <th className="px-4 py-3 text-left font-semibold">Priority</th>
                     <th className="px-4 py-3 text-left font-semibold">Status</th>
                     <th className="px-4 py-3 text-left font-semibold">Doctor</th>
@@ -125,6 +135,18 @@ export default function LabAdmin() {
                     <tr key={order._id}>
                       <td className="px-4 py-4 font-semibold text-white">{order.patientId?.name || "Patient"}</td>
                       <td className="px-4 py-4 text-slate-300">{order.tests.join(", ")}</td>
+                      <td className="px-4 py-4 font-semibold text-teal-300">INR {order.billAmount || 0}</td>
+                      <td className="px-4 py-4">
+                        <span className={`rounded-full border px-2 py-1 text-xs font-bold ${
+                          order.paymentStatus === "paid_online"
+                            ? "border-green-500/30 bg-green-500/10 text-green-300"
+                            : order.paymentStatus === "cash_paid"
+                              ? "border-blue-500/30 bg-blue-500/10 text-blue-300"
+                              : "border-yellow-500/30 bg-yellow-500/10 text-yellow-300"
+                        }`}>
+                          {order.paymentStatus === "paid_online" ? "Paid online" : order.paymentStatus === "cash_paid" ? "Cash paid" : "Unpaid"}
+                        </span>
+                      </td>
                       <td className="px-4 py-4 text-slate-300">{order.priority}</td>
                       <td className="px-4 py-4"><StatusBadge status={order.status} /></td>
                       <td className="px-4 py-4 text-slate-300">Dr. {order.doctorId?.name || "Doctor"}</td>
