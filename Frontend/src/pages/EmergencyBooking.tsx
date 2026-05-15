@@ -269,15 +269,19 @@ export default function EmergencyBooking() {
       // OSM unavailable — fall through to static list
     }
 
-    // Fallback: use static hospital data for the selected city
-    const staticList = STATIC_HOSPITALS[label];
+    // Fallback: find nearest city to the coordinates, use its static list
+    const nearestCity = CITIES
+      .filter(c => STATIC_HOSPITALS[c.name])
+      .sort((a, b) => haversineKm(lat, lng, a.lat, a.lng) - haversineKm(lat, lng, b.lat, b.lng))[0];
+
+    const staticList = nearestCity ? STATIC_HOSPITALS[nearestCity.name] : null;
     if (staticList?.length) {
       const withDist = staticList.map(h => ({ ...h, distanceKm: haversineKm(lat, lng, h.lat, h.lng) }))
         .sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
       setHospitals(withDist);
       setHospError("");
     } else {
-      setHospError(`No hospitals found near ${label}. Try a different city.`);
+      setHospError("No hospitals found nearby. Please select a city manually.");
     }
     setHospLoading(false);
   }, []);
