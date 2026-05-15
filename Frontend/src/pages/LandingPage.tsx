@@ -139,7 +139,7 @@ function Navbar() {
             <motion.div animate={{ scale: [1, 1.18, 1] }} transition={{ repeat: Infinity, duration: 2.4, ease: "easeInOut" }}>
               <HeartPulse size={23} color="#06b6d4" />
             </motion.div>
-            <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: "-0.4px", color: "#e2e8f0" }}>
+            <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: "-0.4px", color: "var(--text, #e2e8f0)" }}>
               Chat<span style={{ color: "#06b6d4" }}>Aid</span>
             </span>
           </div>
@@ -148,7 +148,7 @@ function Navbar() {
           <div className="ca-desktop" style={{ display: "flex", gap: 2 }}>
             {NAV_LINKS.map(({ label, href }) => (
               <button key={label} onClick={() => go(href)}
-                style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: 14, fontWeight: 500, padding: "8px 14px", borderRadius: 8, cursor: "pointer", transition: "color 0.2s" }}
+                style={{ background: "transparent", border: "none", color: "var(--text-dim, #94a3b8)", fontSize: 14, fontWeight: 500, padding: "8px 14px", borderRadius: 8, cursor: "pointer", transition: "color 0.2s" }}
                 onMouseEnter={e => (e.currentTarget.style.color = "#e2e8f0")}
                 onMouseLeave={e => (e.currentTarget.style.color = "#94a3b8")}
               >{label}</button>
@@ -172,7 +172,7 @@ function Navbar() {
           <div className="ca-mobile" style={{ display: "none", alignItems: "center", gap: 8 }}>
             <ThemeToggle size={15} />
             <button onClick={() => setOpen(true)}
-              style={{ background: "transparent", border: "1px solid rgba(148,163,184,0.2)", color: "#e2e8f0", borderRadius: 8, padding: "8px", cursor: "pointer" }}>
+              style={{ background: "transparent", border: "1px solid rgba(148,163,184,0.2)", color: "var(--text, #e2e8f0)", borderRadius: 8, padding: "8px", cursor: "pointer" }}>
               <Menu size={20} />
             </button>
           </div>
@@ -189,21 +189,21 @@ function Navbar() {
             <motion.div key="dr"
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 272, background: "#0f172a", borderLeft: "1px solid rgba(148,163,184,0.1)", zIndex: 400, padding: "20px 18px", display: "flex", flexDirection: "column", gap: 6 }}
+              style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 272, background: "var(--surface-2, #0f172a)", borderLeft: "1px solid rgba(148,163,184,0.1)", zIndex: 400, padding: "20px 18px", display: "flex", flexDirection: "column", gap: 6 }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                <span style={{ fontWeight: 700, fontSize: 17, color: "#e2e8f0" }}>Chat<span style={{ color: "#06b6d4" }}>Aid</span></span>
-                <button onClick={() => setOpen(false)} style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer" }}><X size={21} /></button>
+                <span style={{ fontWeight: 700, fontSize: 17, color: "var(--text, #e2e8f0)" }}>Chat<span style={{ color: "#06b6d4" }}>Aid</span></span>
+                <button onClick={() => setOpen(false)} style={{ background: "transparent", border: "none", color: "var(--text-dim, #94a3b8)", cursor: "pointer" }}><X size={21} /></button>
               </div>
               {NAV_LINKS.map(({ label, href }) => (
                 <button key={label} onClick={() => go(href)}
-                  style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: 15, fontWeight: 500, padding: "12px 14px", borderRadius: 10, cursor: "pointer", textAlign: "left" }}>
+                  style={{ background: "transparent", border: "none", color: "var(--text-dim, #94a3b8)", fontSize: 15, fontWeight: 500, padding: "12px 14px", borderRadius: 10, cursor: "pointer", textAlign: "left" }}>
                   {label}
                 </button>
               ))}
               <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
                 <button onClick={() => { setOpen(false); navigate("/login"); }}
-                  style={{ background: "transparent", border: "1px solid rgba(148,163,184,0.22)", color: "#e2e8f0", borderRadius: 10, padding: "12px", fontSize: 14, fontWeight: 500, cursor: "pointer" }}>Login</button>
+                  style={{ background: "transparent", border: "1px solid rgba(148,163,184,0.22)", color: "var(--text, #e2e8f0)", borderRadius: 10, padding: "12px", fontSize: 14, fontWeight: 500, cursor: "pointer" }}>Login</button>
                 <button onClick={() => { setOpen(false); navigate("/signup"); }}
                   style={{ background: "linear-gradient(135deg,#06b6d4,#8b5cf6)", border: "none", color: "#fff", borderRadius: 10, padding: "12px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Sign Up</button>
               </div>
@@ -252,12 +252,12 @@ function Hero() {
         </motion.div>
 
         <motion.h1 variants={fadeUp} custom={1}
-          style={{ fontSize: "clamp(38px, 6.5vw, 72px)", fontWeight: 400, lineHeight: 1.06, marginBottom: 22, background: "linear-gradient(135deg, #e2e8f0 0%, #06b6d4 45%, #8b5cf6 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", fontFamily: "'DM Serif Display', serif" }}>
+          style={{ fontSize: "clamp(38px, 6.5vw, 72px)", fontWeight: 400, lineHeight: 1.06, marginBottom: 22, background: "linear-gradient(135deg, var(--text, #e2e8f0) 0%, #06b6d4 45%, #8b5cf6 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", fontFamily: "'DM Serif Display', serif" }}>
           AI-Powered Healthcare,<br />At Your Voice.
         </motion.h1>
 
         <motion.p variants={fadeUp} custom={2}
-          style={{ fontSize: 17, color: "#64748b", maxWidth: 520, margin: "0 auto 44px", lineHeight: 1.75 }}>
+          style={{ fontSize: 17, color: "var(--text-dim, #64748b)", maxWidth: 520, margin: "0 auto 44px", lineHeight: 1.75 }}>
           Book doctors, file emergencies, and manage your health records — all by speaking. No forms. No queues. No friction.
         </motion.p>
 
@@ -285,8 +285,8 @@ function Hero() {
           ].map(({ icon: Icon, val, label }, i) => (
             <div key={label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 28px", borderRight: i < 2 ? "1px solid rgba(148,163,184,0.15)" : "none" }}>
               <Icon size={16} color="#06b6d4" />
-              <span style={{ fontWeight: 700, fontSize: 18, color: "#e2e8f0" }}>{val}</span>
-              <span style={{ fontSize: 13, color: "#64748b" }}>{label}</span>
+              <span style={{ fontWeight: 700, fontSize: 18, color: "var(--text, #e2e8f0)" }}>{val}</span>
+              <span style={{ fontSize: 13, color: "var(--text-dim, #64748b)" }}>{label}</span>
             </div>
           ))}
         </motion.div>
@@ -304,8 +304,8 @@ function Features() {
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} style={{ textAlign: "center", marginBottom: 56 }}>
           <span style={{ display: "inline-block", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.25)", color: "#8b5cf6", fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", padding: "6px 16px", borderRadius: 20, marginBottom: 18 }}>Why ChatAid?</span>
-          <h2 style={{ fontSize: "clamp(26px, 4vw, 44px)", fontFamily: "'DM Serif Display', serif", fontWeight: 400, color: "#e2e8f0", marginBottom: 14 }}>Everything your health needs</h2>
-          <p style={{ color: "#64748b", fontSize: 15, maxWidth: 480, margin: "0 auto" }}>Six pillars that make ChatAid the last healthcare app you'll ever install.</p>
+          <h2 style={{ fontSize: "clamp(26px, 4vw, 44px)", fontFamily: "'DM Serif Display', serif", fontWeight: 400, color: "var(--text, #e2e8f0)", marginBottom: 14 }}>Everything your health needs</h2>
+          <p style={{ color: "var(--text-dim, #64748b)", fontSize: 15, maxWidth: 480, margin: "0 auto" }}>Six pillars that make ChatAid the last healthcare app you'll ever install.</p>
         </motion.div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 18 }}>
@@ -318,8 +318,8 @@ function Features() {
               <div style={{ width: 46, height: 46, borderRadius: 12, background: `${color}16`, border: `1px solid ${color}28`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 18 }}>
                 <Icon size={21} color={color} />
               </div>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>{title}</h3>
-              <p style={{ fontSize: 13.5, color: "#64748b", lineHeight: 1.72 }}>{desc}</p>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--text, #e2e8f0)", marginBottom: 8 }}>{title}</h3>
+              <p style={{ fontSize: 13.5, color: "var(--text-dim, #64748b)", lineHeight: 1.72 }}>{desc}</p>
             </motion.div>
           ))}
         </div>
@@ -343,11 +343,11 @@ function Specialties() {
           style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 36, flexWrap: "wrap", gap: 16 }}>
           <div>
             <span style={{ display: "inline-block", background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", color: "#10b981", fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", padding: "6px 16px", borderRadius: 20, marginBottom: 14 }}>Specialties</span>
-            <h2 style={{ fontSize: "clamp(24px, 3.5vw, 40px)", fontFamily: "'DM Serif Display', serif", fontWeight: 400, color: "#e2e8f0" }}>Find your specialist</h2>
+            <h2 style={{ fontSize: "clamp(24px, 3.5vw, 40px)", fontFamily: "'DM Serif Display', serif", fontWeight: 400, color: "var(--text, #e2e8f0)" }}>Find your specialist</h2>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             {(["l", "r"] as const).map(d => (
-              <button key={d} onClick={() => scroll(d)} style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(148,163,184,0.15)", color: "#94a3b8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <button key={d} onClick={() => scroll(d)} style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(148,163,184,0.15)", color: "var(--text-dim, #94a3b8)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {d === "l" ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
               </button>
             ))}
@@ -362,10 +362,10 @@ function Specialties() {
             transition={{ duration: 0.4, delay: i * 0.05, ease: EASE }}
             whileHover={{ scale: 1.05 }}
             onClick={() => navigate(`/doctors?specialty=${name.toLowerCase()}`)}
-            style={{ flexShrink: 0, background: "rgba(15,23,42,0.85)", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 14, padding: "20px 22px", cursor: "pointer", minWidth: 158 }}
+            style={{ flexShrink: 0, background: "var(--surface, rgba(15,23,42,0.85))", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 14, padding: "20px 22px", cursor: "pointer", minWidth: 158 }}
           >
             <div style={{ fontSize: 28, marginBottom: 10 }}>{emoji}</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0", marginBottom: 4 }}>{name}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text, #e2e8f0)", marginBottom: 4 }}>{name}</div>
             <div style={{ fontSize: 12, color: "#06b6d4" }}>{count} doctors</div>
           </motion.div>
         ))}
@@ -383,7 +383,7 @@ function HowItWorks() {
       <div style={{ maxWidth: 1000, margin: "0 auto" }}>
         <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} style={{ textAlign: "center", marginBottom: 64 }}>
           <span style={{ display: "inline-block", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)", color: "#f59e0b", fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", padding: "6px 16px", borderRadius: 20, marginBottom: 18 }}>How It Works</span>
-          <h2 style={{ fontSize: "clamp(26px, 4vw, 44px)", fontFamily: "'DM Serif Display', serif", fontWeight: 400, color: "#e2e8f0" }}>Three steps to better care</h2>
+          <h2 style={{ fontSize: "clamp(26px, 4vw, 44px)", fontFamily: "'DM Serif Display', serif", fontWeight: 400, color: "var(--text, #e2e8f0)" }}>Three steps to better care</h2>
         </motion.div>
 
         {STEPS.map(({ num, title, desc }, i) => (
@@ -397,8 +397,8 @@ function HowItWorks() {
               <span style={{ fontSize: 22, fontWeight: 800, color: "#06b6d4", fontFamily: "'DM Serif Display', serif" }}>{num}</span>
             </div>
             <div style={{ paddingTop: 6 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 700, color: "#e2e8f0", marginBottom: 10 }}>{title}</h3>
-              <p style={{ fontSize: 14.5, color: "#64748b", lineHeight: 1.75, maxWidth: 560 }}>{desc}</p>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--text, #e2e8f0)", marginBottom: 10 }}>{title}</h3>
+              <p style={{ fontSize: 14.5, color: "var(--text-dim, #64748b)", lineHeight: 1.75, maxWidth: 560 }}>{desc}</p>
             </div>
           </motion.div>
         ))}
@@ -428,7 +428,7 @@ function Testimonials() {
       <div style={{ maxWidth: 700, margin: "0 auto", textAlign: "center" }}>
         <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} style={{ marginBottom: 48 }}>
           <span style={{ display: "inline-block", background: "rgba(236,72,153,0.1)", border: "1px solid rgba(236,72,153,0.25)", color: "#ec4899", fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", padding: "6px 16px", borderRadius: 20, marginBottom: 18 }}>Testimonials</span>
-          <h2 style={{ fontSize: "clamp(24px, 3.5vw, 40px)", fontFamily: "'DM Serif Display', serif", fontWeight: 400, color: "#e2e8f0" }}>Patients love ChatAid</h2>
+          <h2 style={{ fontSize: "clamp(24px, 3.5vw, 40px)", fontFamily: "'DM Serif Display', serif", fontWeight: 400, color: "var(--text, #e2e8f0)" }}>Patients love ChatAid</h2>
         </motion.div>
 
         <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
@@ -436,17 +436,17 @@ function Testimonials() {
             <motion.div key={idx}
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
               transition={{ duration: 0.4, ease: EASE }}
-              style={{ background: "rgba(15,23,42,0.85)", border: "1px solid rgba(148,163,184,0.1)", borderRadius: 20, padding: "40px 36px", backdropFilter: "blur(20px)", marginBottom: 28 }}
+              style={{ background: "var(--surface, rgba(15,23,42,0.85))", border: "1px solid rgba(148,163,184,0.1)", borderRadius: 20, padding: "40px 36px", backdropFilter: "blur(20px)", marginBottom: 28 }}
             >
               <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 20 }}>
                 {[...Array(t.rating)].map((_, i) => <Star key={i} size={16} fill="#f59e0b" color="#f59e0b" />)}
               </div>
-              <p style={{ fontSize: 16, color: "#cbd5e1", lineHeight: 1.8, marginBottom: 28, fontStyle: "italic" }}>"{t.text}"</p>
+              <p style={{ fontSize: 16, color: "var(--text, #cbd5e1)", lineHeight: 1.8, marginBottom: 28, fontStyle: "italic" }}>"{t.text}"</p>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14 }}>
                 <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg,#06b6d4,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff" }}>{t.avatar}</div>
                 <div style={{ textAlign: "left" }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: "#e2e8f0" }}>{t.name}</div>
-                  <div style={{ fontSize: 12, color: "#64748b" }}>{t.city}</div>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text, #e2e8f0)" }}>{t.name}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-dim, #64748b)" }}>{t.city}</div>
                 </div>
               </div>
             </motion.div>
@@ -478,8 +478,8 @@ function Footer() {
           initial={{ opacity: 0, scale: 0.97 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.5 }}
           style={{ maxWidth: 900, margin: "0 auto", background: "linear-gradient(135deg, rgba(6,182,212,0.1), rgba(139,92,246,0.12))", border: "1px solid rgba(6,182,212,0.22)", borderRadius: 22, padding: "60px 40px", textAlign: "center" }}
         >
-          <h2 style={{ fontSize: "clamp(24px, 4vw, 42px)", fontFamily: "'DM Serif Display', serif", fontWeight: 400, color: "#e2e8f0", marginBottom: 16 }}>Ready to take control of your health?</h2>
-          <p style={{ color: "#64748b", fontSize: 15, marginBottom: 36 }}>Join 50,000+ patients already using ChatAid across India.</p>
+          <h2 style={{ fontSize: "clamp(24px, 4vw, 42px)", fontFamily: "'DM Serif Display', serif", fontWeight: 400, color: "var(--text, #e2e8f0)", marginBottom: 16 }}>Ready to take control of your health?</h2>
+          <p style={{ color: "var(--text-dim, #64748b)", fontSize: 15, marginBottom: 36 }}>Join 50,000+ patients already using ChatAid across India.</p>
           <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }} onClick={() => navigate("/signup")}
             style={{ background: "linear-gradient(135deg,#06b6d4,#8b5cf6)", border: "none", color: "#fff", borderRadius: 12, padding: "15px 40px", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 9 }}>
             Create Free Account <ArrowRight size={16} />
@@ -495,12 +495,12 @@ function Footer() {
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
                 <HeartPulse size={20} color="#06b6d4" />
-                <span style={{ fontWeight: 700, fontSize: 17, color: "#e2e8f0" }}>Chat<span style={{ color: "#06b6d4" }}>Aid</span></span>
+                <span style={{ fontWeight: 700, fontSize: 17, color: "var(--text, #e2e8f0)" }}>Chat<span style={{ color: "#06b6d4" }}>Aid</span></span>
               </div>
-              <p style={{ fontSize: 13.5, color: "#64748b", lineHeight: 1.75, maxWidth: 220, marginBottom: 20 }}>AI-powered healthcare for Bharat. Voice-first. Secure. Always there when you need it.</p>
+              <p style={{ fontSize: 13.5, color: "var(--text-dim, #64748b)", lineHeight: 1.75, maxWidth: 220, marginBottom: 20 }}>AI-powered healthcare for Bharat. Voice-first. Secure. Always there when you need it.</p>
               <div style={{ display: "flex", gap: 8 }}>
                 {[Twitter, Github, Linkedin, Mail].map((Icon, i) => (
-                  <button key={i} style={{ width: 34, height: 34, borderRadius: 8, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(148,163,184,0.12)", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <button key={i} style={{ width: 34, height: 34, borderRadius: 8, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(148,163,184,0.12)", color: "var(--text-dim, #64748b)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Icon size={15} />
                   </button>
                 ))}
@@ -509,9 +509,9 @@ function Footer() {
 
             {FOOTER_COLS.map(({ heading, links }) => (
               <div key={heading}>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#94a3b8", marginBottom: 16 }}>{heading}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--text-dim, #94a3b8)", marginBottom: 16 }}>{heading}</div>
                 {links.map(l => (
-                  <div key={l} style={{ fontSize: 13.5, color: "#64748b", marginBottom: 10, cursor: "pointer", transition: "color 0.2s" }}
+                  <div key={l} style={{ fontSize: 13.5, color: "var(--text-dim, #64748b)", marginBottom: 10, cursor: "pointer", transition: "color 0.2s" }}
                     onMouseEnter={e => (e.currentTarget.style.color = "#e2e8f0")}
                     onMouseLeave={e => (e.currentTarget.style.color = "#64748b")}>{l}</div>
                 ))}

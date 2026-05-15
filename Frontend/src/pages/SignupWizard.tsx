@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import ThemeToggle from "../components/ThemeToggle";
 
 const STEPS = [
   { id:1, label:"Account",   icon:User,        title:"Create your account",    sub:"Basic login credentials and personal details" },
@@ -25,14 +26,14 @@ const ACTIVITY_OPTS = ["Sedentary","Light","Moderate","Active","Very active"];
 
 const inp = (error?: boolean): React.CSSProperties => ({
   width:"100%", boxSizing:"border-box" as const,
-  background:"rgba(15,23,42,0.8)",
-  border:`1px solid ${error ? "rgba(239,68,68,0.4)" : "rgba(148,163,184,0.1)"}`,
+  background:"var(--input-bg, rgba(15,23,42,0.8))",
+  border:`1px solid ${error ? "rgba(239,68,68,0.4)" : "var(--border-mid, rgba(148,163,184,0.1))"}`,
   borderRadius:10, padding:"0.65rem 0.9rem",
-  color:"#f1f5f9", fontFamily:"inherit", fontSize:13, outline:"none",
+  color:"var(--text, #f1f5f9)", fontFamily:"inherit", fontSize:13, outline:"none",
   transition:"border-color .2s",
 });
 const lbl: React.CSSProperties = {
-  fontSize:11, color:"#64748b", fontWeight:600, letterSpacing:0.5,
+  fontSize:11, color:"var(--text-dim, #64748b)", fontWeight:600, letterSpacing:0.5,
   textTransform:"uppercase" as const, display:"block", marginBottom:5,
 };
 const errTxt: React.CSSProperties = { fontSize:11, color:"#ef4444", marginTop:3 };
@@ -209,23 +210,26 @@ export default function SignupWizard() {
   );
 
   return (
-    <div style={{ minHeight:"100vh", background:"#020817", fontFamily:"system-ui, -apple-system, sans-serif", color:"#e2e8f0", padding:"2rem 1rem" }}>
+    <div style={{ minHeight:"100vh", background:"var(--page-bg, #020817)", fontFamily:"system-ui, -apple-system, sans-serif", color:"var(--text, #e2e8f0)", padding:"2rem 1rem" }}>
       <div style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none", background:"radial-gradient(ellipse 80% 50% at 30% 20%, rgba(6,182,212,0.05) 0%, transparent 60%)" }}/>
 
       <div style={{ maxWidth:700, margin:"0 auto", position:"relative", zIndex:1 }}>
 
         {/* Header */}
+        <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:8 }}>
+          <ThemeToggle size={14} />
+        </div>
         <div style={{ textAlign:"center" as const, marginBottom:"2rem" }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:16 }}>
             <div style={{ width:36, height:36, borderRadius:10, background:"rgba(6,182,212,0.12)", border:"1px solid rgba(6,182,212,0.25)", display:"flex", alignItems:"center", justifyContent:"center" }}>
               <HeartPulse color="#06b6d4" size={18}/>
             </div>
-            <span style={{ fontSize:17, fontWeight:800, color:"#f1f5f9", letterSpacing:-0.4 }}>
+            <span style={{ fontSize:17, fontWeight:800, color:"var(--text, #f1f5f9)", letterSpacing:-0.4 }}>
               MediCare <span style={{ color:"#06b6d4" }}>AI</span>
             </span>
           </div>
-          <div style={{ fontSize:24, fontWeight:800, color:"#f1f5f9", letterSpacing:-0.6, marginBottom:6 }}>{STEPS[step-1].title}</div>
-          <div style={{ fontSize:13, color:"#475569" }}>{STEPS[step-1].sub}</div>
+          <div style={{ fontSize:24, fontWeight:800, color:"var(--text, #f1f5f9)", letterSpacing:-0.6, marginBottom:6 }}>{STEPS[step-1].title}</div>
+          <div style={{ fontSize:13, color:"var(--text-dim, #475569)" }}>{STEPS[step-1].sub}</div>
         </div>
 
         {/* Stepper */}
@@ -258,7 +262,7 @@ export default function SignupWizard() {
 
         <AnimatePresence mode="wait">
           <motion.div key={step} initial={{ opacity:0, x:30 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }} transition={{ duration:0.22 }}
-            style={{ background:"rgba(15,23,42,0.6)", backdropFilter:"blur(20px)", border:"1px solid rgba(148,163,184,0.08)", borderRadius:16, overflow:"hidden" }}>
+            style={{ background:"var(--surface, rgba(15,23,42,0.6))", backdropFilter:"blur(20px)", border:"1px solid var(--border-c, rgba(148,163,184,0.08))", borderRadius:16, overflow:"hidden" }}>
 
             <div style={{ height:2, background:`linear-gradient(90deg,transparent,${accentColor},transparent)` }}/>
 
@@ -281,7 +285,7 @@ export default function SignupWizard() {
                       <label style={lbl}>Password *</label>
                       <div style={{ position:"relative" }}>
                         <input style={{ ...inp(!!errors.password), paddingRight:44 }} type={showPw?"text":"password"} value={s1.password} onChange={set1("password")} placeholder="Min 8 characters"/>
-                        <button type="button" onClick={()=>setShowPw(p=>!p)} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"#475569" }}>
+                        <button type="button" onClick={()=>setShowPw(p=>!p)} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"var(--text-dim, #475569)" }}>
                           {showPw ? <EyeOff size={14}/> : <Eye size={14}/>}
                         </button>
                       </div>
@@ -408,7 +412,7 @@ export default function SignupWizard() {
                           <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", opacity:0.3, pointerEvents:"none" }}/>
                         </div>
                         {conditions.length > 1 && (
-                          <button type="button" onClick={()=>removeItem(setConditions,i)} style={{ background:"none", border:"none", cursor:"pointer", color:"#475569" }}><Trash2 size={13}/></button>
+                          <button type="button" onClick={()=>removeItem(setConditions,i)} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text-dim, #475569)" }}><Trash2 size={13}/></button>
                         )}
                       </div>
                     ))}
@@ -431,7 +435,7 @@ export default function SignupWizard() {
                         </div>
                         <input style={inp()} value={a.reaction} onChange={e=>updateList(setAllergies,i,"reaction",e.target.value)} placeholder="Reaction (e.g. Rash)"/>
                         {allergies.length > 1 && (
-                          <button type="button" onClick={()=>removeItem(setAllergies,i)} style={{ background:"none", border:"none", cursor:"pointer", color:"#475569" }}><Trash2 size={13}/></button>
+                          <button type="button" onClick={()=>removeItem(setAllergies,i)} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text-dim, #475569)" }}><Trash2 size={13}/></button>
                         )}
                       </div>
                     ))}
@@ -455,7 +459,7 @@ export default function SignupWizard() {
                         </div>
                         <input style={inp()} type="date" value={m.refillDate} onChange={e=>updateList(setMedications,i,"refillDate",e.target.value)}/>
                         {medications.length > 1 && (
-                          <button type="button" onClick={()=>removeItem(setMedications,i)} style={{ background:"none", border:"none", cursor:"pointer", color:"#475569" }}><Trash2 size={13}/></button>
+                          <button type="button" onClick={()=>removeItem(setMedications,i)} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text-dim, #475569)" }}><Trash2 size={13}/></button>
                         )}
                       </div>
                     ))}
@@ -478,7 +482,7 @@ export default function SignupWizard() {
                           <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", opacity:0.3, pointerEvents:"none" }}/>
                         </div>
                         {immunizations.length > 1 && (
-                          <button type="button" onClick={()=>removeItem(setImmunizations,i)} style={{ background:"none", border:"none", cursor:"pointer", color:"#475569" }}><Trash2 size={13}/></button>
+                          <button type="button" onClick={()=>removeItem(setImmunizations,i)} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text-dim, #475569)" }}><Trash2 size={13}/></button>
                         )}
                       </div>
                     ))}
@@ -508,7 +512,7 @@ export default function SignupWizard() {
                     <input style={inp()} value={s3.preferredHospital} onChange={set3("preferredHospital")} placeholder="Hospital name"/>
                   </div>
                   <div style={{ background:"rgba(6,182,212,0.04)", border:"1px solid rgba(6,182,212,0.1)", borderRadius:12, padding:"1rem" }}>
-                    <p style={{ fontSize:12, color:"#475569", lineHeight:1.7, margin:0 }}>
+                    <p style={{ fontSize:12, color:"var(--text-dim, #475569)", lineHeight:1.7, margin:0 }}>
                       ℹ You can skip this step and fill in insurance details later from your dashboard.
                     </p>
                   </div>
@@ -546,7 +550,7 @@ export default function SignupWizard() {
                     </div>
                   </div>
                   <div style={{ background:"rgba(16,185,129,0.04)", border:"1px solid rgba(16,185,129,0.12)", borderRadius:12, padding:"1rem" }}>
-                    <p style={{ fontSize:12, color:"#475569", lineHeight:1.7, margin:0 }}>
+                    <p style={{ fontSize:12, color:"var(--text-dim, #475569)", lineHeight:1.7, margin:0 }}>
                       🎉 Almost done! Click <strong style={{ color:"#10b981" }}>Complete Setup</strong> to go to your dashboard.
                     </p>
                   </div>
@@ -574,7 +578,7 @@ export default function SignupWizard() {
           </motion.div>
         </AnimatePresence>
 
-        <div style={{ textAlign:"center" as const, marginTop:"1.25rem", fontSize:13, color:"#334155" }}>
+        <div style={{ textAlign:"center" as const, marginTop:"1.25rem", fontSize:13, color:"var(--text-dim, #334155)" }}>
           Already have an account?{" "}
           <Link to="/login" style={{ color:"#06b6d4", fontWeight:600, textDecoration:"none" }}>Sign in →</Link>
         </div>
