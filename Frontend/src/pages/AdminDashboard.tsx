@@ -464,19 +464,19 @@ export default function AdminDashboard() {
       style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
 
       {/* Header */}
-      <div className="bg-slate-800/80 backdrop-blur border-b border-slate-700 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-teal-500 rounded-xl flex items-center justify-center text-white font-black">H</div>
-          <div>
-            <p className="text-white font-semibold text-sm">Healthify AI — Admin</p>
-            <p className="text-slate-400 text-xs">{user?.hospitalId?.replace("_", " ").toUpperCase()}</p>
+      <div className="bg-slate-800/80 backdrop-blur border-b border-slate-700 px-4 py-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 bg-teal-500 rounded-xl flex items-center justify-center text-white font-black flex-shrink-0">H</div>
+          <div className="min-w-0">
+            <p className="text-white font-semibold text-sm truncate">Healthify AI — Admin</p>
+            <p className="text-slate-400 text-xs truncate">{user?.hospitalId?.replace("_", " ").toUpperCase()}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {emergencies.length > 0 && (
             <button onClick={() => setActiveTab("emergency")}
-              className="flex items-center gap-1.5 bg-red-600/20 border border-red-500/30 text-red-400 px-3 py-1.5 rounded-lg text-xs animate-pulse">
-              🚨 {emergencies.length} Emergency
+              className="flex items-center gap-1 bg-red-600/20 border border-red-500/30 text-red-400 px-2 py-1.5 rounded-lg text-xs animate-pulse">
+              🚨 <span className="hidden sm:inline">{emergencies.length} Emergency</span><span className="sm:hidden">{emergencies.length}</span>
             </button>
           )}
           <button onClick={handleLogout}
@@ -494,10 +494,10 @@ export default function AdminDashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
           {(["overview", "doctors", "nurses", "patients", "appointments", "cancellations", "leave", "emergency"] as const).map(t => (
             <button key={t} onClick={() => setActiveTab(t)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium border transition capitalize
+              className={`px-4 py-2 rounded-xl text-sm font-medium border transition capitalize whitespace-nowrap flex-shrink-0
                 ${activeTab === t
                   ? t === "emergency" ? "bg-red-600/20 border-red-500/40 text-red-300"
                     : "bg-teal-600/20 border-teal-500/40 text-teal-300"

@@ -124,3 +124,76 @@
     border-radius: 3px;
   }
 }
+
+/* ── Global mobile responsive fixes ───────────────────────────────────────── */
+
+/* Prevent horizontal overflow on all pages */
+html, body, #root {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Hide scrollbar on horizontal tab bars but keep scrolling */
+nav, [style*="overflowX: auto"], [style*="overflow-x: auto"] {
+  scrollbar-width: none;
+}
+nav::-webkit-scrollbar,
+[style*="overflowX: auto"]::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Reduce padding on main containers */
+  main {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  /* Modals: full-width on mobile */
+  [style*="maxWidth: 420"],
+  [style*="maxWidth: 480"],
+  [style*="maxWidth: 520"],
+  [style*="maxWidth: 560"] {
+    max-width: calc(100vw - 2rem) !important;
+    width: calc(100vw - 2rem) !important;
+  }
+
+  /* Prevent fixed-width elements from overflowing */
+  [style*="minWidth: 260"],
+  [style*="minWidth: 300"] {
+    min-width: 0 !important;
+  }
+
+  /* Tables scroll horizontally */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Buttons with long labels wrap gracefully */
+  button {
+    white-space: nowrap;
+  }
+
+  /* Cards stretch full width */
+  [style*="maxWidth: 1000"],
+  [style*="maxWidth: 1100"],
+  [style*="maxWidth: 1200"] {
+    max-width: 100% !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Smaller font on tiny screens */
+  body {
+    font-size: 14px;
+  }
+
+  /* Stack flex rows that have multiple buttons */
+  [style*="paddingRight: 148"] {
+    padding-right: 0 !important;
+  }
+}

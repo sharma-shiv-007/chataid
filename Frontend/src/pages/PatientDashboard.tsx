@@ -1,5 +1,6 @@
 // Frontend/src/pages/PatientDashboard.tsx  ── complete drop-in replacement
 import { useEffect, useState } from "react";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -417,6 +418,7 @@ function LabBillsCard({ bills, onPay }: { bills: LabOrder[]; onPay: (bill: LabOr
 export default function PatientDashboard() {
   const navigate   = useNavigate();
   const { logout } = useAuth();
+  const isMobile   = useIsMobile();
 
   const [patient,       setPatient]       = useState<Record<string, any> | null>(null);
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
@@ -620,14 +622,14 @@ export default function PatientDashboard() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {saveMsg && <span style={{ fontSize: 12, color: saveMsg.includes("✓") ? GREEN : RED, fontWeight: 600 }}>{saveMsg}</span>}
-          <button onClick={() => navigate("/voice")} style={{ display: "flex", alignItems: "center", gap: 5, background: CYAN_BG, border: `1px solid ${CYAN_BDR}`, color: CYAN, padding: "5px 10px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: 700 }}>
-            <Mic size={11} /> Voice Book
+          <button onClick={() => navigate("/voice")} style={{ display: "flex", alignItems: "center", gap: 5, background: CYAN_BG, border: `1px solid ${CYAN_BDR}`, color: CYAN, padding: isMobile ? "7px 9px" : "5px 10px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: 700 }}>
+            <Mic size={13} />{!isMobile && " Voice Book"}
           </button>
-          <button onClick={handleLogout} style={{ display: "flex", alignItems: "center", gap: 5, background: "transparent", border: "1px solid rgba(148,163,184,0.15)", color: TEXT_DIM, padding: "5px 10px", borderRadius: 8, fontSize: 12, cursor: "pointer" }}>
-            <LogOut size={11} /> Sign out
+          <button onClick={handleLogout} style={{ display: "flex", alignItems: "center", gap: 5, background: "transparent", border: "1px solid rgba(148,163,184,0.15)", color: TEXT_DIM, padding: isMobile ? "7px 9px" : "5px 10px", borderRadius: 8, fontSize: 12, cursor: "pointer" }}>
+            <LogOut size={13} />{!isMobile && " Sign out"}
           </button>
-          <button onClick={() => navigate("/emergency")} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.35)", color: RED, padding: "5px 10px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: 700 }}>
-            <AlertTriangle size={11} /> Emergency
+          <button onClick={() => navigate("/emergency")} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.35)", color: RED, padding: isMobile ? "7px 9px" : "5px 10px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: 700 }}>
+            <AlertTriangle size={13} />{!isMobile && " Emergency"}
           </button>
         </div>
       </nav>
@@ -702,7 +704,7 @@ export default function PatientDashboard() {
               </p>
             </div>
             {/* Quick stats pills */}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ display: isMobile ? "none" : "flex", gap: 8, flexWrap: "wrap" }}>
               {prescriptions.length > 0 && (
                 <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.25)", color: VIOLET }}>
                   {prescriptions.length} Rx
@@ -723,7 +725,7 @@ export default function PatientDashboard() {
         </motion.div>
 
         {/* ── Tabs ────────────────────────────────────────────────────── */}
-        <div style={{ display: "flex", gap: 6, marginBottom: "1rem", overflowX: "auto", paddingBottom: 2 }}>
+        <div style={{ display: "flex", gap: 6, marginBottom: "1rem", overflowX: "auto", paddingBottom: 2, scrollbarWidth: "none" }}>
           {tabs.map(tab => {
             const active = activeTab === tab.id;
             return (
@@ -748,7 +750,7 @@ export default function PatientDashboard() {
             <LabBillsCard bills={labBills} onPay={payLabBill} />
 
             {/* Profile + Medical */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
               {/* Profile — editable */}
               <motion.div {...fadeUp(0.06)} style={card}>
                 <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${CYAN}, transparent)` }} />
@@ -826,7 +828,7 @@ export default function PatientDashboard() {
                   <EmptyState icon={Stethoscope} message="Your doctor will update your vitals after your visit" />
                 ) : (
                   <>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: 10 }}>
                       <VitalBox icon={Activity}    label="Blood Pressure" value={patient.vitals.bloodPressure} unit="mmHg" critical={isCritical} />
                       <VitalBox icon={Heart}       label="Heart Rate"     value={patient.vitals.heartRate}     unit="bpm" />
                       <VitalBox icon={Thermometer} label="Temperature"    value={patient.vitals.temperature}   unit="°F" />
@@ -844,7 +846,7 @@ export default function PatientDashboard() {
             </motion.div>
 
             {/* Insurance + Lifestyle */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
               <motion.div {...fadeUp(0.18)} style={card}>
                 <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${GREEN}, transparent)` }} />
                 <div style={{ padding: "1.25rem" }}>

@@ -1,5 +1,6 @@
 // Frontend/src/pages/DoctorDashboard.tsx  ── complete drop-in replacement
 import React, { useEffect, useState, useRef, type CSSProperties } from "react";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -869,7 +870,7 @@ function VitalsCard({ patient }: { patient: any }) {
             No vitals recorded — click "Vitals" to add them.
           </p>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 8 }}>
             {[
               { Icon: Activity,    label: "Blood Pressure", value: v.bloodPressure, unit: "mmHg" },
               { Icon: Heart,       label: "Heart Rate",     value: v.heartRate,     unit: "bpm"  },
@@ -1209,6 +1210,7 @@ function AppointmentsTab() {
 // PATIENTS TAB
 // ══════════════════════════════════════════════════════════════════════════════
 function PatientsTab() {
+  const isMobile = useIsMobile();
   const [patients, setPatients] = useState<any[]>([]);
   const [selected, setSelected] = useState<any>(null);
   const [search,   setSearch]   = useState("");
@@ -1270,7 +1272,7 @@ function PatientsTab() {
   if (loading) return <TabSpinner />;
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: "1rem", alignItems: "start" }}>
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "300px 1fr", gap: "1rem", alignItems: "start" }}>
       {/* Left: patient list */}
       <div style={card()}>
         <div style={topBar()} />
@@ -1496,6 +1498,7 @@ function ActionTab({ title, icon: Icon, color, colorBg, colorBdr, ModalComponent
 export default function DoctorDashboard() {
   const navigate   = useNavigate();
   const { user, logout } = useAuth();
+  const isMobile   = useIsMobile();
   const [activeTab, setActiveTab] = useState("appointments");
   const [notifications, setNotifications] = useState<any[]>([]);
 
@@ -1562,9 +1565,9 @@ export default function DoctorDashboard() {
           <span style={{ color: C.border, margin: "0 6px" }}>|</span>
           <span style={{ fontSize: 12, color: C.dim }}>Doctor Dashboard</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingRight: 148 }}>
-          {unreadNotifications.length > 0 && (
-            <div style={{ minWidth: 260, maxWidth: 360, background: C.surface, border: `1px solid ${C.cyanBdr}`, borderRadius: 12, padding: "8px 10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {unreadNotifications.length > 0 && !isMobile && (
+            <div style={{ minWidth: 200, maxWidth: 300, background: C.surface, border: `1px solid ${C.cyanBdr}`, borderRadius: 12, padding: "8px 10px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 6, color: C.cyan, fontSize: 12, fontWeight: 800 }}>
                   <Bell size={13} /> Notifications
@@ -1582,16 +1585,16 @@ export default function DoctorDashboard() {
               </div>
             </div>
           )}
-          {user?.name && (
+          {user?.name && !isMobile && (
             <span style={{ fontSize: 12, color: C.dim }}>{formatDoctorName(user.name)}</span>
           )}
           <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => navigate("/lab/doctor-reports")}
-            style={{ display: "flex", alignItems: "center", gap: 6, background: C.cyanBg, border: `1px solid ${C.cyanBdr}`, color: C.cyan, padding: "6px 12px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }}>
-            <FlaskConical size={13} /> Lab Results
+            style={{ display: "flex", alignItems: "center", gap: 6, background: C.cyanBg, border: `1px solid ${C.cyanBdr}`, color: C.cyan, padding: isMobile ? "7px 9px" : "6px 12px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }}>
+            <FlaskConical size={13} />{!isMobile && " Lab Results"}
           </motion.button>
           <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={handleLogout}
-            style={{ display: "flex", alignItems: "center", gap: 6, background: C.redBg, border: `1px solid ${C.redBdr}`, color: C.red, padding: "6px 12px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: 600, fontFamily: "inherit" }}>
-            <LogOut size={13} /> Sign out
+            style={{ display: "flex", alignItems: "center", gap: 6, background: C.redBg, border: `1px solid ${C.redBdr}`, color: C.red, padding: isMobile ? "7px 9px" : "6px 12px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: 600, fontFamily: "inherit" }}>
+            <LogOut size={13} />{!isMobile && " Sign out"}
           </motion.button>
         </div>
       </nav>
