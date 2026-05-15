@@ -275,7 +275,7 @@ export default function EmergencyBooking() {
       const withDist = staticList.map(h => ({ ...h, distanceKm: haversineKm(lat, lng, h.lat, h.lng) }))
         .sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
       setHospitals(withDist);
-      setHospError("Live map unavailable — showing pre-loaded hospitals.");
+      setHospError("");
     } else {
       setHospError(`No hospitals found near ${label}. Try a different city.`);
     }
