@@ -1,7 +1,8 @@
 // Frontend/src/auth/AuthContext.tsx
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import API_BASE from "../config/api";
 
-const API = "http://localhost:5000/api";
+const API = API_BASE;
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 

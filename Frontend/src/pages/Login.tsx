@@ -4,8 +4,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import type { AuthUser } from "../auth/AuthContext";
 
+import API_BASE from "../config/api";
 const GOOGLE_CLIENT_ID = "639757510544-sr6f7jfs3fab6sve0vftgcv8sv0gnc29.apps.googleusercontent.com";
-const API = "http://localhost:5000/api/auth";
+const API = `${API_BASE}/auth`;
 
 type Screen = "select" | "patient" | "doctor" | "nurse" | "admin" | "forgot" | "resetSent";
 

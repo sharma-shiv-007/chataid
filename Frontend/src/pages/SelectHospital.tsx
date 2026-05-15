@@ -1,6 +1,7 @@
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import { useAuth } from "../auth/AuthContext";
 import type { AuthUser } from "../auth/AuthContext";
+import API_BASE from "../config/api";
 import {
   HeartPulse,
   PhoneCall,
@@ -362,7 +363,7 @@ const RegistrationModal = ({ hospital: h, onClose }: { hospital: Hospital; onClo
       let savedAppointment: any = null;
 
       try {
-        const backendRes = await fetch("http://localhost:5000/api/appointments", {
+        const backendRes = await fetch(`${API_BASE}/appointments`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -708,7 +709,7 @@ const LoginModal = ({ onClose, onLogin }: {
     try {
       // ── THE FIX: role is sent to backend, backend returns it back correctly ──
       console.log("Sending role:", role);
-      const res = await fetch("http://localhost:5000/api/auth/login", {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, role }),
@@ -852,7 +853,7 @@ const SignupModal = ({ onClose }: { onClose: () => void }) => {
     if (!validate()) return;
     setLoading(true);
     try {
-      const endpoint = "http://localhost:5000/api/auth/signup/patient";
+      const endpoint = `${API_BASE}/auth/signup/patient`;
       const body = { fullName: form.name, age: Number(form.age), gender, phone: form.phone, email: form.email, allergies: form.allergies, password: form.password };
       const res  = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
