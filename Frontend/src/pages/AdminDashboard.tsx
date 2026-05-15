@@ -488,15 +488,13 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-5 py-7">
-
-        <div className="mb-7">
+      {/* Tabs — outside max-w so they scroll edge to edge */}
+      <div className="px-4 pt-5 pb-0">
+        <div className="max-w-4xl mx-auto mb-2">
           <h1 className="text-white font-bold text-2xl">Hospital Admin Panel 🏥</h1>
-          <p className="text-slate-400 text-sm mt-1">Welcome, {user?.name}</p>
+          <p className="text-slate-400 text-sm mt-1 mb-5">Welcome, {user?.name}</p>
         </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+        <div className="flex gap-2 mb-0 overflow-x-auto pb-3" style={{ scrollbarWidth: "none" }}>
           {(["overview", "doctors", "nurses", "patients", "appointments", "cancellations", "leave", "emergency"] as const).map(t => (
             <button key={t} onClick={() => setActiveTab(t)}
               className={`px-4 py-2 rounded-xl text-sm font-medium border transition capitalize whitespace-nowrap flex-shrink-0
@@ -524,6 +522,9 @@ export default function AdminDashboard() {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-5 py-4">
 
         {/* OVERVIEW */}
         {activeTab === "overview" && (

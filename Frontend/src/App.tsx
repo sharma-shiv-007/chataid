@@ -36,7 +36,8 @@ function GlobalEmergencyButton() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  if (location.pathname === "/dashboard") return null;
+  const hiddenPaths = ["/dashboard", "/admin-dashboard", "/doctor-dashboard", "/nurse-dashboard"];
+  if (hiddenPaths.includes(location.pathname)) return null;
 
   const emergencyButtonPlacement =
     location.pathname === "/" ? "landing" : location.pathname === "/login" ? "login" : "default";
