@@ -156,54 +156,55 @@ exports.login = async (req, res) => {
 //   2. If found: log them in with correct role
 //   3. If not found: auto-create as Patient (Google signup)
 exports.googleAuth = async (req, res) => {
-  try {
-    const { credential } = req.body;
-    if (!credential)
-      return res.status(400).json({ error: "Google credential required." });
+  const { credential } = req.body;
+  if (!credential)
+    return res.status(400).json({ error: "Google credential required." });
 
-    // Verify the Google ID token
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      console.error("googleAuth: GOOGLE_CLIENT_ID env var is not set");
-      return res.status(500).json({ error: "Server misconfiguration: missing Google Client ID." });
-    }
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    console.error("googleAuth: GOOGLE_CLIENT_ID env var is not set");
+    return res.status(500).json({ error: "Server misconfiguration: missing Google Client ID." });
+  }
+
+  // ── Step 1: Verify Google token (401 on failure) ─────────────────────────
+  let payload;
+  try {
     const ticket = await getGoogleClient().verifyIdToken({
       idToken: credential,
       audience: clientId,
     });
-    const payload = ticket.getPayload();
-    const { name, email, picture } = payload;
+    payload = ticket.getPayload();
+  } catch (err) {
+    console.error("googleAuth token verification failed:", err.message);
+    return res.status(401).json({ error: "Google token verification failed. Please try again." });
+  }
 
+  // ── Step 2: Find or create user (500 on failure) ──────────────────────────
+  try {
+    const { name, email, picture } = payload;
     if (!email)
       return res.status(400).json({ error: "Could not retrieve email from Google." });
 
     const lowerEmail = email.toLowerCase();
 
-    // Check collections in priority order: Admin → Doctor → Patient
+    // Check collections in priority order: Admin → Doctor → Nurse → Patient
     let user = await Admin.findOne({ email: lowerEmail });
     let role = "admin";
 
-    if (!user) {
-      user = await Doctor.findOne({ email: lowerEmail });
-      role = "doctor";
-    }
-    if (!user) {
-      user = await Nurse.findOne({ email: lowerEmail });
-      role = "nurse";
-    }
-    if (!user) {
-      user = await Patient.findOne({ email: lowerEmail });
-      role = "patient";
-    }
+    if (!user) { user = await Doctor.findOne({ email: lowerEmail }); role = "doctor"; }
+    if (!user) { user = await Nurse.findOne({ email: lowerEmail });  role = "nurse";  }
+    if (!user) { user = await Patient.findOne({ email: lowerEmail }); role = "patient"; }
 
     // Not found anywhere — auto-register as patient
     if (!user) {
       role = "patient";
+      const uhid = `UH-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       user = await Patient.create({
-        name:  name || email.split("@")[0],
-        email: lowerEmail,
-        password: `google_${Date.now()}_${Math.random()}`, // random, can't be used to login with password
+        name:     name || email.split("@")[0],
+        email:    lowerEmail,
+        password: `google_${Date.now()}_${Math.random()}`,
         googleAuth: true,
+        uhid,
       });
     }
 
@@ -212,13 +213,12 @@ exports.googleAuth = async (req, res) => {
       ? { ...user.toSafeObject(), role }
       : { id: user._id, name: user.name, email: user.email, role, hospitalId: user.hospitalId };
 
-    // Add photo from Google if available
     if (picture) safeUser.photo = picture;
 
     return res.json({ token, user: safeUser });
   } catch (err) {
-    console.error("googleAuth error:", err);
-    return res.status(401).json({ error: "Google authentication failed. Please try again." });
+    console.error("googleAuth post-verification error:", err);
+    return res.status(500).json({ error: "Login failed after Google verification. Please try again." });
   }
 };
 

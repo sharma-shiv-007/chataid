@@ -8,6 +8,13 @@ const patientSchema = new mongoose.Schema({
   email:    { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true, select: false },
   role:     { type: String, default: "patient" },
+  uhid: {
+    type: String,
+    index: {
+      unique: true,
+      partialFilterExpression: { uhid: { $type: "string" } },
+    },
+  },
 
   // ── Personal ──────────────────────────────────────────────────────────────
   age:              { type: Number },
