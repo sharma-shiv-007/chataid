@@ -5,7 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import type { AuthUser } from "../auth/AuthContext";
 
 import API_BASE from "../config/api";
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "639757510544-sr6f7jfs3fab6sve0vftgcv8sv0gnc29.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "500499600620-4mhjintk9pa51vd2lfqvtij5oijjn4n4.apps.googleusercontent.com";
 const API = `${API_BASE}/auth`;
 
 type Screen = "select" | "patient" | "doctor" | "nurse" | "admin" | "forgot" | "resetSent";
