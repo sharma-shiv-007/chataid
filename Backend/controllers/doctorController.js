@@ -127,10 +127,10 @@ exports.getDashboard = async (req, res) => {
 // ── Appointments ───────────────────────────────────────────────────────────
 exports.getTodayAppointments = async (req, res) => {
   try {
-    const appts = await Appointment.find(doctorAppointmentFilter(req.user.id))
+    const appts = await Appointment.find(todayAppointmentFilter(req.user.id))
       .populate("patient", "name email age gender")
       .populate("patientId", "name email age gender")
-      .sort({ date: 1, time: 1 });
+      .sort({ time: 1 });
 
     res.json({ appointments: await attachAppointmentNames(appts) });
   } catch (err) {

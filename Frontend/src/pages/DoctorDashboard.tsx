@@ -1011,108 +1011,110 @@ function getAppointmentPatientName(appt: any) {
 }
 
 function AppointmentsTab() {
-  const [appts,        setAppts]        = useState<any[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  const [refreshing,   setRefreshing]   = useState(false);
-  const [error,        setError]        = useState("");
-  const [actionId,     setActionId]     = useState<string | null>(null);
-  const [cancelTarget, setCancelTarget] = useState<any | null>(null);
-  const [newIds,       setNewIds]       = useState<Set<string>>(new Set());
-  const [newBanner,    setNewBanner]    = useState<string[]>([]); // names of newly arrived appointments
+  const [appts,      setAppts]      = useState<any[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error,      setError]      = useState("");
+  const [actionId,   setActionId]   = useState<string | null>(null);
+  const [newIds,     setNewIds]     = useState<Set<string>>(new Set());
+  const [newBanner,  setNewBanner]  = useState<string[]>([]);
   const prevIdsRef = useRef<Set<string>>(new Set());
 
-  const loadAppointments = async (silent = false) => {
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
+  const todayLabel = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
+
+  const load = async (silent = false) => {
+    if (!silent) setLoading(true); else setRefreshing(true);
     try {
-      const data = await api.get("/doctor/appointments");
+      const data = await api.get("/doctor/appointments/today");
       const incoming: any[] = data.appointments || [];
 
-      // Detect brand-new appointments that weren't in the previous fetch
+      // Detect new arrivals
       if (prevIdsRef.current.size > 0) {
         const arrived = incoming.filter(a => !prevIdsRef.current.has(String(a._id)));
         if (arrived.length > 0) {
-          const names = arrived.map(a => getAppointmentPatientName(a));
-          setNewBanner(names);
+          setNewBanner(arrived.map(a => getAppointmentPatientName(a)));
           setNewIds(new Set(arrived.map(a => String(a._id))));
-          // Clear the "NEW" highlight after 30 s
           setTimeout(() => setNewIds(new Set()), 30_000);
         }
       }
       prevIdsRef.current = new Set(incoming.map(a => String(a._id)));
+
+      // Sort by time ascending
+      incoming.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
       setAppts(incoming);
     } catch (err: any) {
       setError(err?.message || "Could not load appointments.");
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setLoading(false); setRefreshing(false);
     }
   };
 
-  // Initial load + poll every 20 s
   useEffect(() => {
-    loadAppointments();
-    const timer = window.setInterval(() => loadAppointments(true), 20_000);
-    return () => window.clearInterval(timer);
+    load();
+    const t = window.setInterval(() => load(true), 20_000);
+    return () => window.clearInterval(t);
   }, []);
 
-  const updateStatus = async (id: string, status: "confirmed" | "cancelled") => {
+  const markAttendance = async (id: string, status: "completed" | "no-show") => {
     setActionId(`${id}:${status}`);
-    setError("");
     try {
       const data = await api.updateAppointmentStatus(id, status);
       setAppts(prev => prev.map(a => a._id === id ? { ...a, status: data.appointment?.status || status } : a));
     } catch (err: any) {
-      setError(err?.message || "Could not update appointment.");
+      setError(err?.message || "Could not update.");
     } finally {
       setActionId(null);
     }
   };
 
-  // Sort: critical first → pending (new) first → then by date/time asc
-  const sorted = [...appts].sort((a, b) => {
-    if (isCriticalCase(b) !== isCriticalCase(a)) return Number(isCriticalCase(b)) - Number(isCriticalCase(a));
-    const aNew = newIds.has(String(a._id)) ? 0 : 1;
-    const bNew = newIds.has(String(b._id)) ? 0 : 1;
-    if (aNew !== bNew) return aNew - bNew;
-    const aPending = a.status === "pending" ? 0 : 1;
-    const bPending = b.status === "pending" ? 0 : 1;
-    if (aPending !== bPending) return aPending - bPending;
-    return `${a.dateKey || a.date || ""} ${a.time || ""}`.localeCompare(`${b.dateKey || b.date || ""} ${b.time || ""}`);
-  });
-
   if (loading) return <TabSpinner />;
+
+  const attended  = appts.filter(a => a.status === "completed").length;
+  const absent    = appts.filter(a => a.status === "no-show").length;
+  const pending   = appts.filter(a => !["completed", "no-show", "cancelled"].includes(a.status)).length;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 800, color: C.text }}>Appointments</h2>
-          {refreshing && <Loader size={12} color={C.dim} style={{ animation: "spin 1s linear infinite" }} />}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+        <div>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: C.text }}>Today's Appointments</h2>
+          <p style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>{todayLabel}</p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 11, color: C.dim }}>{appts.length} booked</span>
-          <button onClick={() => loadAppointments(true)} title="Refresh"
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {refreshing && <Loader size={12} color={C.dim} style={{ animation: "spin 1s linear infinite" }} />}
+          <button onClick={() => load(true)}
             style={{ display: "inline-flex", alignItems: "center", gap: 4, background: C.cyanBg, border: `1px solid ${C.cyanBdr}`, color: C.cyan, borderRadius: 8, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
             ↻ Refresh
           </button>
         </div>
       </div>
 
-      {/* New appointment banner */}
+      {/* Summary pills */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {[
+          { label: "Total",    val: appts.length, color: C.cyan,   bg: C.cyanBg,   bdr: C.cyanBdr },
+          { label: "Pending",  val: pending,       color: C.orange, bg: "rgba(249,115,22,0.08)", bdr: "rgba(249,115,22,0.25)" },
+          { label: "Present",  val: attended,      color: C.green,  bg: C.greenBg,  bdr: C.greenBdr },
+          { label: "Absent",   val: absent,        color: C.red,    bg: C.redBg,    bdr: C.redBdr },
+        ].map(s => (
+          <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 6, background: s.bg, border: `1px solid ${s.bdr}`, borderRadius: 8, padding: "4px 10px" }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: s.color }}>{s.val}</span>
+            <span style={{ fontSize: 10, color: s.color, opacity: 0.8 }}>{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* New arrivals banner */}
       <AnimatePresence>
         {newBanner.length > 0 && (
-          <motion.div
-            key="new-banner"
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+          <motion.div key="banner" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
             style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Bell size={14} color={C.green} style={{ flexShrink: 0 }} />
+              <Bell size={14} color={C.green} />
               <p style={{ fontSize: 12, fontWeight: 700, color: C.green }}>
-                New appointment{newBanner.length > 1 ? "s" : ""}: {newBanner.join(", ")}
+                New booking{newBanner.length > 1 ? "s" : ""}: {newBanner.join(", ")}
               </p>
             </div>
             <button onClick={() => setNewBanner([])} style={{ background: "transparent", border: "none", color: C.dim, cursor: "pointer" }}>
@@ -1123,92 +1125,73 @@ function AppointmentsTab() {
       </AnimatePresence>
 
       {error && <ErrorBox msg={error} />}
-      {sorted.length === 0 && !error
-        ? <EmptyState icon={<Calendar size={24} color={C.dim} />} msg="No appointments booked yet" />
-        : (() => {
-            const voiceAppts   = sorted.filter(a => a.bookedVia === "voice");
-            const regularAppts = sorted.filter(a => a.bookedVia !== "voice");
 
-            const renderCard = (appt: any, i: number) => {
-            const sc          = apptStatusColors[appt.status] || apptStatusColors.scheduled;
-            const isCritical  = isCriticalCase(appt);
-            const isNew       = newIds.has(String(appt._id));
+      {appts.length === 0 && !error
+        ? <EmptyState icon={<Calendar size={24} color={C.dim} />} msg="No appointments scheduled for today" />
+        : appts.map((appt, i) => {
             const patientName = getAppointmentPatientName(appt);
             const reason      = appt.reason
               || (Array.isArray(appt.symptoms) && appt.symptoms.length ? appt.symptoms.join(", ") : "")
-              || appt.specialty
-              || "General consultation";
-            const dateText = appt.dateKey
-              ? new Date(`${appt.dateKey}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })
-              : appt.date
-                ? new Date(appt.date).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })
-                : "";
-            const bookedVia = appt.bookedVia;
+              || appt.specialty || "General consultation";
+            const isCritical  = isCriticalCase(appt);
+            const isNew       = newIds.has(String(appt._id));
+            const isDone      = appt.status === "completed" || appt.status === "no-show" || appt.status === "cancelled";
 
             return (
               <motion.div key={appt._id || i}
                 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-                style={{
-                  ...card({
-                    border: `1px solid ${isNew ? "rgba(16,185,129,0.4)" : isCritical ? C.redBdr : C.border}`,
-                    boxShadow: isNew ? "0 0 0 1px rgba(16,185,129,0.15)" : undefined,
-                  }),
-                  padding: "1rem 1.25rem",
-                }}>
+                style={{ ...card({ border: `1px solid ${isNew ? "rgba(16,185,129,0.4)" : isCritical ? C.redBdr : C.border}` }), padding: "1rem 1.25rem" }}>
 
-                {/* NEW stripe at top */}
-                {isNew && (
-                  <div style={{ height: 2, background: "linear-gradient(90deg, transparent, #10b981, transparent)", margin: "-1rem -1.25rem 0.75rem" }} />
-                )}
+                {isNew && <div style={{ height: 2, background: "linear-gradient(90deg,transparent,#10b981,transparent)", margin: "-1rem -1.25rem 0.75rem" }} />}
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                  {/* Left: patient info */}
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12, minWidth: 0 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: isNew ? "rgba(16,185,129,0.12)" : isCritical ? C.redBg : C.cyanBg, border: `1px solid ${isNew ? "rgba(16,185,129,0.3)" : isCritical ? C.redBdr : C.cyanBdr}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {isCritical ? <AlertCircle size={16} color={C.red} /> : <User size={16} color={isNew ? C.green : C.cyan} />}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{patientName}</p>
-                        {isNew && (
-                          <span style={{ fontSize: 9, fontWeight: 900, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: C.green, borderRadius: 6, padding: "2px 6px", letterSpacing: 0.5, textTransform: "uppercase" }}>NEW</span>
-                        )}
-                        {bookedVia === "voice" && (
-                          <span style={{ fontSize: 9, fontWeight: 700, background: C.purpleBg, border: `1px solid ${C.purpleBdr}`, color: C.purple, borderRadius: 6, padding: "2px 6px", letterSpacing: 0.5, textTransform: "uppercase" }}>Voice</span>
-                        )}
-                        {bookedVia === "emergency" && (
-                          <span style={{ fontSize: 9, fontWeight: 700, background: C.redBg, border: `1px solid ${C.redBdr}`, color: C.red, borderRadius: 6, padding: "2px 6px", letterSpacing: 0.5, textTransform: "uppercase" }}>Emergency</span>
-                        )}
-                      </div>
-                      <p style={{ fontSize: 11, color: C.dim, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 240 }}>{reason}</p>
-                      {isCritical && <span style={{ ...badge(statusColors.Critical), marginTop: 6, display: "inline-flex" }}>CRITICAL</span>}
-                    </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+
+                  {/* Time badge */}
+                  <div style={{ minWidth: 52, textAlign: "center", background: C.cyanBg, border: `1px solid ${C.cyanBdr}`, borderRadius: 10, padding: "6px 4px", flexShrink: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 800, color: C.cyan }}>{appt.time || "—"}</p>
                   </div>
 
-                  {/* Right: date/time/status/actions */}
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flexShrink: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <Calendar size={11} color={C.dim} />
-                      <span style={{ fontSize: 11, color: C.dim }}>{dateText || "Date not set"}</span>
+                  {/* Patient info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{patientName}</p>
+                      {isNew && <span style={{ fontSize: 9, fontWeight: 900, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: C.green, borderRadius: 6, padding: "2px 6px", textTransform: "uppercase" }}>NEW</span>}
+                      {isCritical && <span style={{ ...badge(statusColors.Critical) }}>CRITICAL</span>}
+                      {appt.bookedVia === "voice"      && <span style={{ fontSize: 9, fontWeight: 700, background: C.purpleBg, border: `1px solid ${C.purpleBdr}`, color: C.purple, borderRadius: 6, padding: "2px 6px", textTransform: "uppercase" }}>Voice</span>}
+                      {appt.bookedVia === "emergency"  && <span style={{ fontSize: 9, fontWeight: 700, background: C.redBg,    border: `1px solid ${C.redBdr}`,    color: C.red,    borderRadius: 6, padding: "2px 6px", textTransform: "uppercase" }}>Emergency</span>}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <Clock size={11} color={C.dim} />
-                      <span style={{ fontSize: 11, color: C.dim }}>{appt.time || "—"}</span>
-                    </div>
-                    <span style={badge(sc)}>{appt.status || "scheduled"}</span>
-                    {appt.status !== "completed" && (
-                      <div style={{ display: "flex", gap: 6, marginTop: 3 }}>
-                        <button onClick={() => updateStatus(appt._id, "confirmed")}
-                          disabled={appt.status === "confirmed" || actionId !== null}
-                          style={{ display: "inline-flex", alignItems: "center", gap: 4, background: appt.status === "confirmed" ? "rgba(255,255,255,0.03)" : C.greenBg, border: `1px solid ${appt.status === "confirmed" ? C.borderMid : C.greenBdr}`, color: appt.status === "confirmed" ? C.dim : C.green, borderRadius: 8, padding: "5px 8px", fontSize: 10, fontWeight: 800, cursor: appt.status === "confirmed" || actionId !== null ? "default" : "pointer" }}>
-                          {actionId === `${appt._id}:confirmed` ? <Loader size={11} style={{ animation: "spin 1s linear infinite" }} /> : <CheckCircle size={11} />}
-                          Confirm
+                    <p style={{ fontSize: 11, color: C.dim, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 300 }}>{reason}</p>
+                  </div>
+
+                  {/* Attendance actions */}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
+                    {appt.status === "completed" ? (
+                      <span style={{ ...badge({ bg: C.greenBg, border: C.greenBdr, text: C.green }), display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <Check size={10} /> Present
+                      </span>
+                    ) : appt.status === "no-show" ? (
+                      <span style={{ ...badge({ bg: C.redBg, border: C.redBdr, text: C.red }), display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <X size={10} /> Absent
+                      </span>
+                    ) : appt.status === "cancelled" ? (
+                      <span style={{ ...badge({ bg: C.redBg, border: C.redBdr, text: C.red }) }}>Cancelled</span>
+                    ) : (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {/* ✓ Present */}
+                        <button
+                          onClick={() => markAttendance(appt._id, "completed")}
+                          disabled={actionId !== null}
+                          title="Mark as present"
+                          style={{ width: 36, height: 36, borderRadius: 10, background: C.greenBg, border: `1px solid ${C.greenBdr}`, color: C.green, cursor: actionId !== null ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          {actionId === `${appt._id}:completed` ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Check size={16} />}
                         </button>
-                        <button onClick={() => setCancelTarget({ ...appt, patientName })}
-                          disabled={appt.status === "cancelled" || actionId !== null}
-                          style={{ display: "inline-flex", alignItems: "center", gap: 4, background: appt.status === "cancelled" ? "rgba(255,255,255,0.03)" : C.redBg, border: `1px solid ${appt.status === "cancelled" ? C.borderMid : C.redBdr}`, color: appt.status === "cancelled" ? C.dim : C.red, borderRadius: 8, padding: "5px 8px", fontSize: 10, fontWeight: 800, cursor: appt.status === "cancelled" || actionId !== null ? "default" : "pointer" }}>
-                          {actionId === `${appt._id}:cancelled` ? <Loader size={11} style={{ animation: "spin 1s linear infinite" }} /> : <X size={11} />}
-                          Cancel
+                        {/* ✗ Absent */}
+                        <button
+                          onClick={() => markAttendance(appt._id, "no-show")}
+                          disabled={actionId !== null}
+                          title="Mark as absent"
+                          style={{ width: 36, height: 36, borderRadius: 10, background: C.redBg, border: `1px solid ${C.redBdr}`, color: C.red, cursor: actionId !== null ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          {actionId === `${appt._id}:no-show` ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : <X size={16} />}
                         </button>
                       </div>
                     )}
@@ -1216,58 +1199,8 @@ function AppointmentsTab() {
                 </div>
               </motion.div>
             );
-          };  // end renderCard
-
-          return (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", alignItems: "start" }}>
-
-              {/* ── Left column: Voice appointments ── */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: C.purpleBg, border: `1px solid ${C.purpleBdr}`, borderRadius: 10 }}>
-                  <span style={{ fontSize: 14 }}>🎙️</span>
-                  <div>
-                    <p style={{ fontSize: 12, fontWeight: 800, color: C.purple }}>Voice Bookings</p>
-                    <p style={{ fontSize: 10, color: C.dim, marginTop: 1 }}>{voiceAppts.length} appointment{voiceAppts.length !== 1 ? "s" : ""}</p>
-                  </div>
-                </div>
-                {voiceAppts.length === 0
-                  ? <div style={{ ...card(), padding: "1.5rem", textAlign: "center" }}>
-                      <p style={{ fontSize: 12, color: C.dim }}>No voice bookings yet</p>
-                    </div>
-                  : voiceAppts.map((appt, i) => renderCard(appt, i))
-                }
-              </div>
-
-              {/* ── Right column: Regular appointments ── */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: C.cyanBg, border: `1px solid ${C.cyanBdr}`, borderRadius: 10 }}>
-                  <span style={{ fontSize: 14 }}>📅</span>
-                  <div>
-                    <p style={{ fontSize: 12, fontWeight: 800, color: C.cyan }}>Regular Bookings</p>
-                    <p style={{ fontSize: 10, color: C.dim, marginTop: 1 }}>{regularAppts.length} appointment{regularAppts.length !== 1 ? "s" : ""}</p>
-                  </div>
-                </div>
-                {regularAppts.length === 0
-                  ? <div style={{ ...card(), padding: "1.5rem", textAlign: "center" }}>
-                      <p style={{ fontSize: 12, color: C.dim }}>No regular bookings yet</p>
-                    </div>
-                  : regularAppts.map((appt, i) => renderCard(appt, i))
-                }
-              </div>
-            </div>
-          );
-        })()
+          })
       }
-      <AnimatePresence>
-        {cancelTarget && (
-          <CancelAppointmentModal
-            appointmentId={cancelTarget._id}
-            patientName={cancelTarget.patientName || "Patient"}
-            onClose={() => setCancelTarget(null)}
-            onSuccess={() => loadAppointments(true)}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }
