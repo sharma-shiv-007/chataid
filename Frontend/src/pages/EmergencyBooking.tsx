@@ -71,13 +71,49 @@ const EMERGENCY_TYPES: EmergencyType[] = [
 ];
 
 const CITIES = [
-  { name: "Jammu",    lat: 32.7266, lng: 74.8570, radiusKm: 15 },
-  { name: "Udhampur", lat: 32.9200, lng: 75.1400, radiusKm: 12 },
-  { name: "Samba",    lat: 32.5620, lng: 74.9320, radiusKm: 10 },
-  { name: "Kathua",   lat: 32.3850, lng: 75.5100, radiusKm: 10 },
-  { name: "Delhi",    lat: 28.6139, lng: 77.2090, radiusKm: 15 },
-  { name: "Mumbai",   lat: 19.0760, lng: 72.8777, radiusKm: 15 },
+  { name: "Jammu",     lat: 32.7266, lng: 74.8570, radiusKm: 15 },
+  { name: "Udhampur",  lat: 32.9200, lng: 75.1400, radiusKm: 12 },
+  { name: "Samba",     lat: 32.5620, lng: 74.9320, radiusKm: 10 },
+  { name: "Kathua",    lat: 32.3850, lng: 75.5100, radiusKm: 10 },
+  { name: "Srinagar",  lat: 34.0837, lng: 74.7973, radiusKm: 15 },
+  { name: "Delhi",     lat: 28.6139, lng: 77.2090, radiusKm: 15 },
+  { name: "Mumbai",    lat: 19.0760, lng: 72.8777, radiusKm: 15 },
+  { name: "Bangalore", lat: 12.9716, lng: 77.5946, radiusKm: 15 },
 ];
+
+// Static fallback hospitals shown when OSM is unreachable
+const STATIC_HOSPITALS: Record<string, Hospital[]> = {
+  Jammu: [
+    { id: "s1", name: "Government Medical College Jammu",   address: "Gandhi Nagar, Jammu", lat: 32.7180, lng: 74.8560, phone: "0191-2547327", emergency: true },
+    { id: "s2", name: "SMGS Hospital",                      address: "Shalamar Road, Jammu", lat: 32.7300, lng: 74.8600, phone: "0191-2544439", emergency: true },
+    { id: "s3", name: "Narayana Hospital Jammu",            address: "Karan Nagar, Jammu",  lat: 32.7250, lng: 74.8620, phone: "0191-2520303", emergency: true },
+  ],
+  Kathua: [
+    { id: "s4", name: "District Hospital Kathua",           address: "Civil Lines, Kathua",  lat: 32.3850, lng: 75.5100, phone: "01922-232101", emergency: true },
+  ],
+  Udhampur: [
+    { id: "s5", name: "District Hospital Udhampur",         address: "Hospital Road, Udhampur", lat: 32.9200, lng: 75.1400, phone: "01992-270102", emergency: true },
+  ],
+  Samba: [
+    { id: "s6", name: "Community Health Centre Vijaypur",   address: "Vijaypur, Samba",      lat: 32.5620, lng: 74.9320, phone: "01923-220100", emergency: true },
+  ],
+  Srinagar: [
+    { id: "s7", name: "SMHS Hospital Srinagar",             address: "Karan Nagar, Srinagar", lat: 34.0900, lng: 74.8000, phone: "0194-2452090", emergency: true },
+    { id: "s8", name: "SKIMS Soura",                        address: "Soura, Srinagar",       lat: 34.1100, lng: 74.8200, phone: "0194-2401013", emergency: true },
+  ],
+  Delhi: [
+    { id: "s9",  name: "AIIMS New Delhi",                   address: "Ansari Nagar, Delhi",   lat: 28.5672, lng: 77.2100, phone: "011-26588500", emergency: true },
+    { id: "s10", name: "Safdarjung Hospital",                address: "Safdarjung, Delhi",     lat: 28.5679, lng: 77.2066, phone: "011-26165060", emergency: true },
+  ],
+  Mumbai: [
+    { id: "s11", name: "KEM Hospital Mumbai",               address: "Parel, Mumbai",         lat: 18.9985, lng: 72.8435, phone: "022-24136051", emergency: true },
+    { id: "s12", name: "Nair Hospital Mumbai",              address: "Mumbai Central",         lat: 18.9696, lng: 72.8253, phone: "022-23027600", emergency: true },
+  ],
+  Bangalore: [
+    { id: "s13", name: "Victoria Hospital Bangalore",       address: "Bhavana Vihar, Bangalore", lat: 12.9629, lng: 77.5746, phone: "080-26701150", emergency: true },
+    { id: "s14", name: "Bowring Hospital Bangalore",        address: "Shivajinagar, Bangalore",  lat: 12.9833, lng: 77.5915, phone: "080-25544060", emergency: true },
+  ],
+};
 
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -86,17 +122,44 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-async function fetchHospitals(lat: number, lng: number, radiusKm: number): Promise<Hospital[]> {
-  const q = `[out:json][timeout:25];(node["amenity"="hospital"](around:${radiusKm*1000},${lat},${lng});way["amenity"="hospital"](around:${radiusKm*1000},${lat},${lng}););out center;`;
-  const res = await fetch("https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(q));
-  if (!res.ok) throw new Error("OSM API failed");
-  const json = await res.json();
+const OVERPASS_MIRRORS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.openstreetmap.ru/api/interpreter",
+];
+
+function parseOSMResponse(json: any, lat: number, lng: number): Hospital[] {
   return (json.elements as any[]).map((el: any) => {
     const elLat = el.lat ?? el.center?.lat, elLng = el.lon ?? el.center?.lon;
     if (!elLat || !elLng) return null;
     const t = el.tags ?? {};
-    return { id: String(el.id), name: t.name || t["name:en"] || "Unnamed Hospital", address: [t["addr:houseno"], t["addr:street"], t["addr:city"]].filter(Boolean).join(", ") || t["addr:full"] || "", lat: elLat, lng: elLng, phone: t.phone || t["contact:phone"] || "", emergency: t.emergency === "yes" };
+    return {
+      id: String(el.id),
+      name: t.name || t["name:en"] || "Unnamed Hospital",
+      address: [t["addr:houseno"], t["addr:street"], t["addr:city"]].filter(Boolean).join(", ") || t["addr:full"] || "",
+      lat: elLat, lng: elLng,
+      phone: t.phone || t["contact:phone"] || "",
+      emergency: t.emergency === "yes",
+    };
   }).filter(Boolean) as Hospital[];
+}
+
+async function fetchHospitals(lat: number, lng: number, radiusKm: number): Promise<Hospital[]> {
+  const q = `[out:json][timeout:20];(node["amenity"="hospital"](around:${radiusKm*1000},${lat},${lng});way["amenity"="hospital"](around:${radiusKm*1000},${lat},${lng}););out center;`;
+
+  for (const mirror of OVERPASS_MIRRORS) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 9000);
+      const res = await fetch(`${mirror}?data=${encodeURIComponent(q)}`, { signal: ctrl.signal });
+      clearTimeout(timer);
+      if (!res.ok) continue;
+      const json = await res.json();
+      const results = parseOSMResponse(json, lat, lng);
+      if (results.length > 0) return results;
+    } catch { continue; }
+  }
+  throw new Error("osm_unavailable");
 }
 
 async function apiReq(method: string, path: string, body?: object) {
@@ -196,12 +259,27 @@ export default function EmergencyBooking() {
     try {
       let raw = await fetchHospitals(lat, lng, radiusKm);
       if (raw.length === 0) raw = await fetchHospitals(lat, lng, radiusKm * 2.5);
-      if (raw.length === 0) { setHospError(`No hospitals found near ${label}.`); return; }
-      const sorted = raw.map(h => ({ ...h, distanceKm: haversineKm(lat, lng, h.lat, h.lng) }))
-        .sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999)).slice(0, 5);
-      setHospitals(sorted);
-    } catch { setHospError("Could not reach OpenStreetMap. Check your connection."); }
-    finally { setHospLoading(false); }
+      if (raw.length > 0) {
+        const sorted = raw.map(h => ({ ...h, distanceKm: haversineKm(lat, lng, h.lat, h.lng) }))
+          .sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999)).slice(0, 6);
+        setHospitals(sorted);
+        return;
+      }
+    } catch (err: any) {
+      // OSM unavailable — fall through to static list
+    }
+
+    // Fallback: use static hospital data for the selected city
+    const staticList = STATIC_HOSPITALS[label];
+    if (staticList?.length) {
+      const withDist = staticList.map(h => ({ ...h, distanceKm: haversineKm(lat, lng, h.lat, h.lng) }))
+        .sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
+      setHospitals(withDist);
+      setHospError("Live map unavailable — showing pre-loaded hospitals.");
+    } else {
+      setHospError(`No hospitals found near ${label}. Try a different city.`);
+    }
+    setHospLoading(false);
   }, []);
 
   const handleCity = (city: typeof CITIES[0]) => {
@@ -210,12 +288,27 @@ export default function EmergencyBooking() {
   };
 
   const handleGPS = () => {
-    if (!navigator.geolocation) { setHospError("Geolocation not supported."); return; }
-    setActiveCity(null); setUsingGPS(true); setHospLoading(true);
+    if (!navigator.geolocation) {
+      setHospError("GPS not supported on this device. Please select a city below.");
+      return;
+    }
+    setActiveCity(null); setUsingGPS(true); setHospLoading(true); setHospError("");
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => { setLocation({ lat: coords.latitude, lng: coords.longitude }); loadHospitals(coords.latitude, coords.longitude, 15, "your location"); },
-      () => { setHospError("Location denied. Choose a city instead."); setHospLoading(false); setUsingGPS(false); },
-      { timeout: 8000, enableHighAccuracy: true }
+      ({ coords }) => {
+        setLocation({ lat: coords.latitude, lng: coords.longitude });
+        loadHospitals(coords.latitude, coords.longitude, 15, "your location");
+      },
+      (err) => {
+        setHospLoading(false); setUsingGPS(false);
+        if (err.code === 1) {
+          setHospError("Location permission denied. Tap a city below to find hospitals.");
+        } else if (err.code === 3) {
+          setHospError("Location timed out. Tap a city below instead.");
+        } else {
+          setHospError("Could not get location. Tap a city below.");
+        }
+      },
+      { timeout: 10000, enableHighAccuracy: false, maximumAge: 60000 }
     );
   };
 
@@ -429,7 +522,12 @@ export default function EmergencyBooking() {
               </div>
             )}
 
-            {hospError && <p style={{ color: AMBER, fontSize: 13, marginBottom: 12 }}>⚠️ {hospError}</p>}
+            {hospError && (
+              <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>⚠️</span>
+                <p style={{ color: AMBER, fontSize: 13, lineHeight: 1.5 }}>{hospError}</p>
+              </div>
+            )}
 
             {hospitals.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
