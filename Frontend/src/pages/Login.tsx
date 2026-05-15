@@ -5,22 +5,23 @@ import { useAuth } from "../auth/AuthContext";
 import type { AuthUser } from "../auth/AuthContext";
 
 import API_BASE from "../config/api";
+import ThemeToggle from "../components/ThemeToggle";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "500499600620-4mhjintk9pa51vd2lfqvtij5oijjn4n4.apps.googleusercontent.com";
 const API = `${API_BASE}/auth`;
 
 type Screen = "select" | "patient" | "doctor" | "nurse" | "admin" | "forgot" | "resetSent";
 
-// ── Styles (module-level so they never recreate) ───────────────────────────────
+// ── Styles (use CSS vars so light/dark mode works) ────────────────────────────
 const inp: React.CSSProperties = {
   width: "100%", boxSizing: "border-box",
-  background: "rgba(15,23,42,0.9)",
-  border: "1px solid rgba(148,163,184,0.12)",
+  background: "var(--input-bg, rgba(15,23,42,0.9))",
+  border: "1px solid var(--border-mid, rgba(148,163,184,0.12))",
   borderRadius: 10, padding: "0.7rem 0.9rem",
-  color: "#f1f5f9", fontFamily: "inherit", fontSize: 13.5,
+  color: "var(--text, #f1f5f9)", fontFamily: "inherit", fontSize: 13.5,
   outline: "none",
 };
 const lbl: React.CSSProperties = {
-  display: "block", fontSize: 11, color: "#475569",
+  display: "block", fontSize: 11, color: "var(--text-dim, #475569)",
   fontWeight: 600, letterSpacing: 0.6,
   textTransform: "uppercase", marginBottom: 6,
 };
@@ -39,22 +40,22 @@ const tealBtn: React.CSSProperties = {
 };
 const ghostBtn: React.CSSProperties = {
   ...tealBtn,
-  background: "rgba(255,255,255,0.03)", border: "1px solid rgba(148,163,184,0.1)", color: "#64748b",
+  background: "var(--surface, rgba(255,255,255,0.03))", border: "1px solid var(--border-c, rgba(148,163,184,0.1))", color: "var(--text-dim, #64748b)",
 };
 const eyeStyle: React.CSSProperties = {
   position: "absolute", right: 10, top: "50%",
   transform: "translateY(-50%)",
-  background: "none", border: "none", color: "#475569",
+  background: "none", border: "none", color: "var(--text-dim, #475569)",
   cursor: "pointer", fontSize: 11, fontFamily: "inherit",
 };
 const hintBox: React.CSSProperties = {
-  marginTop: 14, background: "rgba(255,255,255,0.015)",
-  border: "1px solid rgba(148,163,184,0.07)",
+  marginTop: 14, background: "var(--surface, rgba(255,255,255,0.015))",
+  border: "1px solid var(--border-c, rgba(148,163,184,0.07))",
   borderRadius: 10, padding: "0.75rem 0.9rem",
 };
 const backBtnStyle: React.CSSProperties = {
   display: "flex", alignItems: "center", gap: 6,
-  background: "none", border: "none", color: "#475569",
+  background: "none", border: "none", color: "var(--text-dim, #475569)",
   cursor: "pointer", fontSize: 13, fontFamily: "inherit",
   padding: 0, marginBottom: "1.5rem",
 };
@@ -157,7 +158,7 @@ function EmailForm({ role, hint, email, setEmail, password, setPassword, showPw,
         </button>
       </div>
       <div style={hintBox}>
-        <p style={{ fontSize: 11, color: "#334155", fontWeight: 600, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: 0.5 }}>
+        <p style={{ fontSize: 11, color: "var(--text-dim, #334155)", fontWeight: 600, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: 0.5 }}>
           Demo credentials
         </p>
         <p style={{ fontSize: 12, color: "#475569", fontFamily: "monospace", margin: 0 }}>{hint}</p>
@@ -366,22 +367,26 @@ export default function Login() {
   };
 
   const page: React.CSSProperties = {
-    minHeight: "100vh", background: "#020817",
+    minHeight: "100vh", background: "var(--page-bg, #020817)",
     display: "flex", alignItems: "center", justifyContent: "center",
     padding: "2.5rem 1rem",
     fontFamily: "'DM Sans', system-ui, sans-serif",
     position: "relative", overflow: "hidden",
   };
   const cardStyle: React.CSSProperties = {
-    background: "rgba(10,20,40,0.97)",
-    border: "1px solid rgba(148,163,184,0.1)",
+    background: "var(--surface-2, rgba(10,20,40,0.97))",
+    border: "1px solid var(--border-c, rgba(148,163,184,0.1))",
     borderRadius: 24, padding: "2rem",
     backdropFilter: "blur(24px)",
-    boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
+    boxShadow: "0 25px 60px rgba(0,0,0,0.15)",
   };
 
   return (
     <div style={page}>
+      {/* Theme toggle top-right */}
+      <div style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}>
+        <ThemeToggle size={15} />
+      </div>
       {/* Background glows */}
       <div style={{ position: "absolute", top: "-20%", left: "20%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(20,184,166,0.06) 0%, transparent 65%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", bottom: "-15%", right: "10%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(59,130,246,0.05) 0%, transparent 65%)", pointerEvents: "none" }} />
@@ -392,9 +397,9 @@ export default function Login() {
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <div style={{ width: 40, height: 40, background: "linear-gradient(135deg, #14b8a6 0%, #0ea5e9 100%)", borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 19, color: "#fff", boxShadow: "0 0 20px rgba(20,184,166,0.3)" }}>H</div>
-            <span style={{ fontSize: 23, fontWeight: 700, color: "#f8fafc", letterSpacing: -0.5 }}>Healthify <span style={{ color: "#2dd4bf" }}>AI</span></span>
+            <span style={{ fontSize: 23, fontWeight: 700, color: "var(--text, #f8fafc)", letterSpacing: -0.5 }}>Healthify <span style={{ color: "#2dd4bf" }}>AI</span></span>
           </div>
-          <p style={{ fontSize: 13, color: "#475569", margin: 0 }}>Your intelligent healthcare companion</p>
+          <p style={{ fontSize: 13, color: "var(--text-dim, #475569)", margin: 0 }}>Your intelligent healthcare companion</p>
         </div>
 
         <div style={cardStyle}>
@@ -403,7 +408,7 @@ export default function Login() {
           {/* ── SELECT ── */}
           {screen === "select" && (
             <>
-              <p style={{ fontSize: 21, fontWeight: 700, color: "#f1f5f9", letterSpacing: -0.4, margin: "0 0 4px" }}>Welcome back</p>
+              <p style={{ fontSize: 21, fontWeight: 700, color: "var(--text, #f1f5f9)", letterSpacing: -0.4, margin: "0 0 4px" }}>Welcome back</p>
               <p style={{ fontSize: 13, color: "#475569", margin: "0 0 1.5rem" }}>Sign in to continue</p>
 
               <div style={{ marginBottom: 10 }}>
@@ -420,7 +425,7 @@ export default function Login() {
 
               <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0" }}>
                 <div style={{ flex: 1, height: 1, background: "rgba(148,163,184,0.1)" }} />
-                <span style={{ fontSize: 11, color: "#334155", letterSpacing: 0.5, textTransform: "uppercase" }}>or sign in as</span>
+                <span style={{ fontSize: 11, color: "var(--text-dim, #334155)", letterSpacing: 0.5, textTransform: "uppercase" }}>or sign in as</span>
                 <div style={{ flex: 1, height: 1, background: "rgba(148,163,184,0.1)" }} />
               </div>
 
@@ -432,10 +437,10 @@ export default function Login() {
                   { icon: "N", label: "Nurse", screen: "nurse" as Screen, color: "#34d399", border: "rgba(52,211,153,0.3)" },
                 ] as const).map(r => (
                   <button key={r.label} onClick={() => goTo(r.screen)}
-                    style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${r.border}`, borderRadius: 14, padding: "1rem 0.5rem", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+                    style={{ background: "var(--surface, rgba(255,255,255,0.02))", border: `1px solid ${r.border}`, borderRadius: 14, padding: "1rem 0.5rem", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
                     <div style={{ fontSize: 22, marginBottom: 6 }}>{r.icon}</div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: r.color }}>{r.label}</div>
-                    <div style={{ fontSize: 10, color: "#334155", marginTop: 3 }}>Sign in</div>
+                    <div style={{ fontSize: 10, color: "var(--text-dim, #334155)", marginTop: 3 }}>Sign in</div>
                   </button>
                 ))}
               </div>
@@ -450,7 +455,7 @@ export default function Login() {
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.25rem" }}>
                 <span style={{ fontSize: 28 }}>👤</span>
                 <div>
-                  <p style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9", margin: 0 }}>Patient Login</p>
+                  <p style={{ fontSize: 20, fontWeight: 700, color: "var(--text, #f1f5f9)", margin: 0 }}>Patient Login</p>
                   <p style={{ fontSize: 12, color: "#475569", margin: 0 }}>Access your health dashboard</p>
                 </div>
               </div>
@@ -468,7 +473,7 @@ export default function Login() {
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.25rem" }}>
                 <span style={{ fontSize: 28 }}>🩺</span>
                 <div>
-                  <p style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9", margin: 0 }}>Doctor Login</p>
+                  <p style={{ fontSize: 20, fontWeight: 700, color: "var(--text, #f1f5f9)", margin: 0 }}>Doctor Login</p>
                   <p style={{ fontSize: 12, color: "#475569", margin: 0 }}>Access your clinic dashboard</p>
                 </div>
               </div>
@@ -485,7 +490,7 @@ export default function Login() {
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.25rem" }}>
                 <span style={{ fontSize: 28, color: "#34d399", fontWeight: 800 }}>N</span>
                 <div>
-                  <p style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9", margin: 0 }}>Nurse Login</p>
+                  <p style={{ fontSize: 20, fontWeight: 700, color: "var(--text, #f1f5f9)", margin: 0 }}>Nurse Login</p>
                   <p style={{ fontSize: 12, color: "#475569", margin: 0 }}>Access your nurse account</p>
                 </div>
               </div>
@@ -502,7 +507,7 @@ export default function Login() {
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.25rem" }}>
                 <span style={{ fontSize: 28 }}>🏥</span>
                 <div>
-                  <p style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9", margin: 0 }}>Admin Login</p>
+                  <p style={{ fontSize: 20, fontWeight: 700, color: "var(--text, #f1f5f9)", margin: 0 }}>Admin Login</p>
                   <p style={{ fontSize: 12, color: "#475569", margin: 0 }}>Access hospital management</p>
                 </div>
               </div>
@@ -520,7 +525,7 @@ export default function Login() {
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.25rem" }}>
                 <span style={{ fontSize: 28 }}>🔑</span>
                 <div>
-                  <p style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9", margin: 0 }}>Forgot Password</p>
+                  <p style={{ fontSize: 20, fontWeight: 700, color: "var(--text, #f1f5f9)", margin: 0 }}>Forgot Password</p>
                   <p style={{ fontSize: 12, color: "#475569", margin: 0 }}>Enter your email to get a reset link</p>
                 </div>
               </div>
@@ -550,7 +555,7 @@ export default function Login() {
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.25rem" }}>
                 <span style={{ fontSize: 28 }}>🔒</span>
                 <div>
-                  <p style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9", margin: 0 }}>Reset Password</p>
+                  <p style={{ fontSize: 20, fontWeight: 700, color: "var(--text, #f1f5f9)", margin: 0 }}>Reset Password</p>
                   <p style={{ fontSize: 12, color: "#475569", margin: 0 }}>Enter your new password</p>
                 </div>
               </div>
