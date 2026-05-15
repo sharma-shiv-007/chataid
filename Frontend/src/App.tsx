@@ -89,11 +89,15 @@ function GlobalEmergencyButton() {
             right: 18px !important;
           }
         }
+        /* On mobile: move into the navbar row (top-right, navbar height is ~60px) */
         @media (max-width: 640px) {
           [aria-label="Open emergency booking"] {
-            top: auto !important;
-            right: 14px !important;
-            bottom: 14px !important;
+            top: 11px !important;
+            right: 60px !important;
+            bottom: auto !important;
+            height: 36px !important;
+            font-size: 12px !important;
+            padding: 0 10px !important;
           }
         }
       `}</style>
