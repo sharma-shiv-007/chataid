@@ -175,6 +175,7 @@ exports.listEmergencies = async (req, res) => {
     const emergencies = await Appointment.find({
       bookedVia: "emergency",
       createdAt: { $gte: since },
+      status: { $ne: "acknowledged" },
     }).sort({ aiSeverityScore: -1, createdAt: -1 });
 
     res.json({ emergencies });

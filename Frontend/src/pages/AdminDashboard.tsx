@@ -145,6 +145,15 @@ export default function AdminDashboard() {
       .finally(() => { if (showLoading) setEmergencyLoading(false); });
   };
 
+  const dismissEmergency = async (id: string) => {
+    setEmergencies(prev => prev.filter(e => e._id !== id));
+    try {
+      await api.patch(`/appointments/${id}/status`, { status: "acknowledged" });
+    } catch {
+      // silently ignore — it's already removed from UI
+    }
+  };
+
   useEffect(() => {
     fetchEmergencies();
     const timer = window.setInterval(() => fetchEmergencies(false), 30_000);
@@ -1376,6 +1385,12 @@ export default function AdminDashboard() {
                           <span className="text-xs bg-slate-800 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-full font-medium">
                             Score {e.aiSeverityScore}/10
                           </span>
+                          <button
+                            onClick={() => dismissEmergency(e._id)}
+                            title="Mark as read"
+                            className="text-xs font-semibold px-3 py-1 rounded-full border border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors">
+                            ✓ Done
+                          </button>
                         </div>
                       </div>
 
