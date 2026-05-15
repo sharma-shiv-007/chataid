@@ -22,7 +22,7 @@ const appointmentSchema = new mongoose.Schema({
   dateKey:        { type: String, default: "" },
   time:           { type: String, required: true },
   notes:          { type: String, default: "" },
-  status:         { type: String, enum: ["pending", "confirmed", "cancelled", "completed", "rescheduled"], default: "pending" },
+  status:         { type: String, enum: ["pending", "confirmed", "cancelled", "completed", "rescheduled", "no-show", "acknowledged"], default: "pending" },
   paymentStatus:  { type: String, enum: ["pending", "paid", "refunded", "refund_requested"], default: "pending" },
   paymentMethod:  { type: String, default: "" },
   consultationFee:{ type: Number, default: 0 },

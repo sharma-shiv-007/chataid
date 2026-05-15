@@ -120,6 +120,7 @@ export default function AdminDashboard() {
   const [emergencies, setEmergencies] = useState<any[]>([]);
   const [emergencyLoading, setEmergencyLoading] = useState(false);
   const [emergencyError, setEmergencyError] = useState("");
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   // ── Patients tab ──────────────────────────────────────────────────────────
   const [patients, setPatients]             = useState<any[]>([]);
@@ -140,18 +141,15 @@ export default function AdminDashboard() {
     if (showLoading) setEmergencyLoading(true);
     setEmergencyError("");
     api.get("/emergency/list")
-      .then(data => setEmergencies(data.emergencies || []))
+      .then(data => setEmergencies((data.emergencies || []).filter((e: any) => !dismissedIds.has(e._id))))
       .catch(err => setEmergencyError(err?.message || "Could not load emergencies."))
       .finally(() => { if (showLoading) setEmergencyLoading(false); });
   };
 
   const dismissEmergency = async (id: string) => {
+    setDismissedIds(prev => new Set([...prev, id]));
     setEmergencies(prev => prev.filter(e => e._id !== id));
-    try {
-      await api.patch(`/appointments/${id}/status`, { status: "acknowledged" });
-    } catch {
-      // silently ignore — it's already removed from UI
-    }
+    api.patch(`/appointments/${id}/status`, { status: "acknowledged" }).catch(() => {});
   };
 
   useEffect(() => {
