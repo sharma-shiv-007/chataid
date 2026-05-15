@@ -2,6 +2,7 @@
 const path         = require("path");
 const Patient      = require("../models/patient");
 const Doctor       = require("../models/doctor");
+const Nurse        = require("../models/nurse");
 const Appointment  = require("../models/appointment");
 const Prescription = require("../models/prescription");
 const ClinicalNote = require("../models/clinicalNote");
@@ -553,5 +554,30 @@ exports.uploadReport = async (req, res) => {
   } catch (err) {
     console.error("uploadReport:", err);
     res.status(500).json({ error: "Upload failed." });
+  }
+};
+
+exports.updateDoctor = async (req, res) => {
+  try {
+    const allowed = ["name", "email", "specialisation", "medRegNo", "hospital", "phone", "consultationFee", "bio"];
+    const updates = Object.fromEntries(
+      Object.entries(req.body).filter(([k]) => allowed.includes(k))
+    );
+    const doctor = await Doctor.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true }).select("-password");
+    if (!doctor) return res.status(404).json({ error: "Doctor not found." });
+    res.json({ doctor });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Could not update doctor." });
+  }
+};
+
+exports.deleteDoctor = async (req, res) => {
+  try {
+    const doctor = await Doctor.findByIdAndDelete(req.params.id);
+    if (!doctor) return res.status(404).json({ error: "Doctor not found." });
+    await Nurse.updateMany({ assignedDoctor: req.params.id }, { $set: { assignedDoctor: null } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Could not delete doctor." });
   }
 };

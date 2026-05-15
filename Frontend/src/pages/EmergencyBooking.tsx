@@ -60,7 +60,7 @@ const BORDER  = "rgba(148,163,184,0.1)";
 const TEXT    = "#e2e8f0";
 const DIM     = "#64748b";
 
-// ─── Emergency types ──────────────────────────────────────────────────────────
+
 const EMERGENCY_TYPES: EmergencyType[] = [
   { id: "chest",     label: "Chest Pain / Heart",    icon: "❤️",  border: "rgba(239,68,68,0.4)",   priorityColor: RED,    bgGlow: "rgba(239,68,68,0.08)",   department: "Cardiology Emergency", ward: "Cardiac ICU — Ward 4B",      priority: "CRITICAL", specialty: "Cardiologist" },
   { id: "accident",  label: "Accident / Injury",     icon: "🚨",  border: "rgba(249,115,22,0.4)",  priorityColor: ORANGE, bgGlow: "rgba(249,115,22,0.08)",  department: "Trauma Center",        ward: "Trauma Bay — Ground Floor",  priority: "CRITICAL", specialty: "Trauma Specialist" },
@@ -79,7 +79,7 @@ const CITIES = [
   { name: "Mumbai",   lat: 19.0760, lng: 72.8777, radiusKm: 15 },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 6371, dLat = ((lat2-lat1)*Math.PI)/180, dLng = ((lng2-lng1)*Math.PI)/180;
   const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;

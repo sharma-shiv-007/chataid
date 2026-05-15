@@ -2,11 +2,24 @@ import { Download, FileText } from "lucide-react";
 import type { LabOrder, LabResult } from "../../services/labService";
 import StatusBadge from "./StatusBadge";
 
-const flagClass = (flag?: LabResult["flag"]) => {
-  if (flag === "normal") return "border-green-500/30 bg-green-500/10 text-green-300";
-  if (flag === "low" || flag === "high") return "border-yellow-500/30 bg-yellow-500/10 text-yellow-300";
-  if (flag === "critical") return "border-red-500/30 bg-red-500/10 text-red-300";
-  return "border-slate-800 bg-slate-950 text-slate-300";
+const flagBorder = (flag?: LabResult["flag"]) => {
+  if (flag === "normal") return "border-green-500/30 bg-green-500/10";
+  if (flag === "low" || flag === "high") return "border-yellow-500/30 bg-yellow-500/10";
+  if (flag === "critical") return "border-red-500/30 bg-red-500/10";
+  return "border-slate-800 bg-slate-950";
+};
+
+const FlagBadge = ({ flag }: { flag?: LabResult["flag"] }) => {
+  if (!flag) return null;
+  const color =
+    flag === "normal"   ? "bg-green-500/20 text-green-300 border-green-500/30" :
+    flag === "critical" ? "bg-red-500/20 text-red-300 border-red-500/30" :
+                          "bg-yellow-500/20 text-yellow-300 border-yellow-500/30";
+  return (
+    <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-bold uppercase tracking-wide ${color}`}>
+      {flag}
+    </span>
+  );
 };
 
 export default function ReportViewer({ report }: { report: LabOrder }) {
@@ -28,18 +41,21 @@ export default function ReportViewer({ report }: { report: LabOrder }) {
         {(report.results || []).length === 0 ? (
           <p className="text-sm text-slate-500">No structured result values were entered.</p>
         ) : report.results?.map((result, index) => (
-          <div key={`${result.testName}-${index}`} className={`rounded-xl border p-3 ${flagClass(result.flag)}`}>
+          <div key={`${result.testName}-${index}`} className={`rounded-xl border p-3 ${flagBorder(result.flag)}`}>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-sm font-bold">{result.testName}</p>
-                <p className="mt-1 text-xs opacity-80">Normal range: {result.normalRange || "Not specified"}</p>
+                <p className="text-sm font-bold text-white">{result.testName}</p>
+                <p className="mt-1 text-xs text-slate-400">Normal range: {result.normalRange || "Not specified"}</p>
               </div>
-              <div className="text-left sm:text-right">
-                <p className="text-lg font-black">{result.value || result.values || "Not entered"} {result.unit || ""}</p>
-                {result.flag && <p className="text-xs font-bold uppercase tracking-wide">{result.flag}</p>}
+              <div className="flex flex-col items-start gap-1 sm:items-end">
+                <p className="text-lg font-black text-white">
+                  {result.value || "—"}
+                  {result.unit && <span className="ml-1 text-sm font-normal text-slate-400">{result.unit}</span>}
+                </p>
+                <FlagBadge flag={result.flag} />
               </div>
             </div>
-            {result.values && result.value && <p className="mt-2 text-xs opacity-80">{result.values}</p>}
+            {result.values && <p className="mt-2 text-xs text-slate-400">{result.values}</p>}
           </div>
         ))}
       </div>

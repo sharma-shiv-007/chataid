@@ -307,58 +307,110 @@ function WalletCard({ wallet }: { wallet: any }) {
 
 function LabBillsCard({ bills, onPay }: { bills: LabOrder[]; onPay: (bill: LabOrder, method: "online" | "cash") => void }) {
   const recentBills = bills.slice(0, 5);
+  const [payingBill, setPayingBill] = useState<LabOrder | null>(null);
+
   return (
-    <motion.div {...fadeUp(0.04)} style={{ ...card, marginBottom: "1rem" }}>
-      <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${CYAN}, transparent)` }} />
-      <div style={{ padding: "1.25rem" }}>
-        <SectionHeader icon={FlaskConical} title="Lab Bills" color={CYAN} />
-        {recentBills.length === 0 ? (
-          <p style={{ color: TEXT_DIM, fontSize: 12 }}>No lab bills yet.</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {recentBills.map(bill => {
-              const paid = bill.paymentStatus === "paid_online" || bill.paymentStatus === "cash_paid";
-              return (
-                <div key={bill._id} style={{ background: "rgba(6,182,212,0.05)", border: `1px solid ${paid ? "rgba(16,185,129,0.22)" : CYAN_BDR}`, borderRadius: 12, padding: "12px 14px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-                    <div>
-                      <p style={{ fontSize: 13, fontWeight: 800, color: TEXT }}>{bill.tests.join(", ")}</p>
-                      <p style={{ fontSize: 11, color: TEXT_DIM, marginTop: 3 }}>Dr. {bill.doctorId?.name || "Doctor"}</p>
+    <>
+      <motion.div {...fadeUp(0.04)} style={{ ...card, marginBottom: "1rem" }}>
+        <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${CYAN}, transparent)` }} />
+        <div style={{ padding: "1.25rem" }}>
+          <SectionHeader icon={FlaskConical} title="Lab Bills" color={CYAN} />
+          {recentBills.length === 0 ? (
+            <p style={{ color: TEXT_DIM, fontSize: 12 }}>No lab bills yet.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {recentBills.map(bill => {
+                const paid = bill.paymentStatus === "paid_online" || bill.paymentStatus === "cash_paid";
+                return (
+                  <div key={bill._id} style={{ background: "rgba(6,182,212,0.05)", border: `1px solid ${paid ? "rgba(16,185,129,0.22)" : CYAN_BDR}`, borderRadius: 12, padding: "12px 14px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 800, color: TEXT }}>{bill.tests.join(", ")}</p>
+                        <p style={{ fontSize: 11, color: TEXT_DIM, marginTop: 3 }}>Dr. {bill.doctorId?.name || "Doctor"}</p>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <p style={{ fontSize: 18, color: paid ? GREEN : CYAN, fontWeight: 900 }}>₹{bill.billAmount || 0}</p>
+                        <p style={{ fontSize: 10, color: paid ? GREEN : "#f59e0b", fontWeight: 800, textTransform: "uppercase" }}>
+                          {bill.paymentStatus === "paid_online" ? "Paid online" : bill.paymentStatus === "cash_paid" ? "Cash paid" : "Unpaid"}
+                        </p>
+                      </div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <p style={{ fontSize: 18, color: paid ? GREEN : CYAN, fontWeight: 900 }}>INR {bill.billAmount || 0}</p>
-                      <p style={{ fontSize: 10, color: paid ? GREEN : AMBER, fontWeight: 800, textTransform: "uppercase" }}>
-                        {bill.paymentStatus === "paid_online" ? "Paid online" : bill.paymentStatus === "cash_paid" ? "Cash paid" : "Unpaid"}
-                      </p>
-                    </div>
+                    {bill.billItems?.length ? (
+                      <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+                        {bill.billItems.map(item => (
+                          <div key={item.testName} style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 11, color: TEXT_DIM }}>
+                            <span>{item.testName}</span><span>₹{item.price}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {!paid && (
+                      <button onClick={() => setPayingBill(bill)}
+                        style={{ marginTop: 10, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "rgba(37,99,235,0.18)", border: "1px solid rgba(96,165,250,0.35)", color: "#60a5fa", padding: "9px", borderRadius: 10, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+                        <CreditCard size={13} /> Pay ₹{bill.billAmount} Now
+                      </button>
+                    )}
                   </div>
-                  {bill.billItems?.length ? (
-                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
-                      {bill.billItems.map(item => (
-                        <div key={item.testName} style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 11, color: TEXT_DIM }}>
-                          <span>{item.testName}</span>
-                          <span>INR {item.price}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                  {!paid && (
-                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                      <button onClick={() => onPay(bill, "online")} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: CYAN_BG, border: `1px solid ${CYAN_BDR}`, color: CYAN, padding: "8px", borderRadius: 10, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
-                        <CreditCard size={13} /> Pay Online
-                      </button>
-                      <button onClick={() => onPay(bill, "cash")} style={{ flex: 1, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", color: GREEN, padding: "8px", borderRadius: 10, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
-                        Mark Cash Paid
-                      </button>
-                    </div>
-                  )}
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* ── Inline payment modal ── */}
+      {payingBill && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ width: "100%", maxWidth: 400, background: "#0f172a", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 20, overflow: "hidden", boxShadow: "0 32px 80px rgba(0,0,0,0.6)" }}>
+            {/* Modal header */}
+            <div style={{ background: "#1e3a5f", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <p style={{ color: "#93c5fd", fontSize: 11, fontWeight: 700, marginBottom: 3 }}>ChatAid Clinic — Lab Bill</p>
+                <p style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{payingBill.tests.join(", ")}</p>
+                <p style={{ color: "#60a5fa", fontSize: 24, fontWeight: 900, marginTop: 4 }}>₹{payingBill.billAmount?.toLocaleString("en-IN")}</p>
+              </div>
+              <button onClick={() => setPayingBill(null)} style={{ color: "#94a3b8", background: "none", border: "none", cursor: "pointer", marginTop: 2 }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ padding: "16px 20px" }}>
+              <p style={{ color: "#94a3b8", fontSize: 11, fontWeight: 700, marginBottom: 12, letterSpacing: "0.05em" }}>SELECT PAYMENT METHOD</p>
+
+              {/* Online */}
+              <button onClick={() => { setPayingBill(null); onPay(payingBill, "online"); }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, background: "rgba(37,99,235,0.12)", border: "1px solid rgba(96,165,250,0.3)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", marginBottom: 10, textAlign: "left" }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(37,99,235,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <CreditCard size={18} color="#60a5fa" />
                 </div>
-              );
-            })}
+                <div>
+                  <p style={{ color: "#e2e8f0", fontSize: 13, fontWeight: 800 }}>Pay Online</p>
+                  <p style={{ color: "#64748b", fontSize: 11, marginTop: 2 }}>UPI · Card · Net Banking · Wallet</p>
+                </div>
+                <ChevronRight size={16} color="#475569" style={{ marginLeft: "auto" }} />
+              </button>
+
+              {/* Cash */}
+              <button onClick={() => { setPayingBill(null); onPay(payingBill, "cash"); }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", textAlign: "left" }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(16,185,129,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <WalletCards size={18} color="#10b981" />
+                </div>
+                <div>
+                  <p style={{ color: "#e2e8f0", fontSize: 13, fontWeight: 800 }}>Pay at Counter</p>
+                  <p style={{ color: "#64748b", fontSize: 11, marginTop: 2 }}>Mark as cash paid at hospital desk</p>
+                </div>
+                <ChevronRight size={16} color="#475569" style={{ marginLeft: "auto" }} />
+              </button>
+
+              <div style={{ marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, color: "#334155", fontSize: 10 }}>
+                <Lock size={9} /> Demo Mode — No real money charged
+              </div>
+            </div>
           </div>
-        )}
-      </div>
-    </motion.div>
+        </div>
+      )}
+    </>
   );
 }
 

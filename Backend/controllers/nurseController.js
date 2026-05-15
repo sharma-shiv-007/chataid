@@ -17,6 +17,32 @@ exports.getAdminNurses = async (_req, res) => {
   }
 };
 
+exports.updateNurse = async (req, res) => {
+  try {
+    const allowed = ["name", "email", "hospital", "phone"];
+    const updates = Object.fromEntries(
+      Object.entries(req.body).filter(([k]) => allowed.includes(k))
+    );
+    const nurse = await Nurse.findByIdAndUpdate(req.params.nurseId, updates, { new: true, runValidators: true })
+      .select("-password")
+      .populate("assignedDoctor", "name specialisation email");
+    if (!nurse) return res.status(404).json({ error: "Nurse not found." });
+    res.json({ nurse });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Could not update nurse." });
+  }
+};
+
+exports.deleteNurse = async (req, res) => {
+  try {
+    const nurse = await Nurse.findByIdAndDelete(req.params.nurseId);
+    if (!nurse) return res.status(404).json({ error: "Nurse not found." });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Could not delete nurse." });
+  }
+};
+
 exports.assignNurse = async (req, res) => {
   try {
     const { nurseId } = req.params;

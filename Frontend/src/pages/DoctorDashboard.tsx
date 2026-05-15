@@ -1011,25 +1011,49 @@ function getAppointmentPatientName(appt: any) {
 }
 
 function AppointmentsTab() {
-  const [appts,   setAppts]   = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState("");
-  const [actionId, setActionId] = useState<string | null>(null);
+  const [appts,        setAppts]        = useState<any[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [refreshing,   setRefreshing]   = useState(false);
+  const [error,        setError]        = useState("");
+  const [actionId,     setActionId]     = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<any | null>(null);
+  const [newIds,       setNewIds]       = useState<Set<string>>(new Set());
+  const [newBanner,    setNewBanner]    = useState<string[]>([]); // names of newly arrived appointments
+  const prevIdsRef = useRef<Set<string>>(new Set());
 
-  const loadAppointments = async () => {
+  const loadAppointments = async (silent = false) => {
+    if (!silent) setLoading(true);
+    else setRefreshing(true);
     try {
       const data = await api.get("/doctor/appointments");
-      setAppts(data.appointments || []);
+      const incoming: any[] = data.appointments || [];
+
+      // Detect brand-new appointments that weren't in the previous fetch
+      if (prevIdsRef.current.size > 0) {
+        const arrived = incoming.filter(a => !prevIdsRef.current.has(String(a._id)));
+        if (arrived.length > 0) {
+          const names = arrived.map(a => getAppointmentPatientName(a));
+          setNewBanner(names);
+          setNewIds(new Set(arrived.map(a => String(a._id))));
+          // Clear the "NEW" highlight after 30 s
+          setTimeout(() => setNewIds(new Set()), 30_000);
+        }
+      }
+      prevIdsRef.current = new Set(incoming.map(a => String(a._id)));
+      setAppts(incoming);
     } catch (err: any) {
       setError(err?.message || "Could not load appointments.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
+  // Initial load + poll every 20 s
   useEffect(() => {
     loadAppointments();
+    const timer = window.setInterval(() => loadAppointments(true), 20_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   const updateStatus = async (id: string, status: "confirmed" | "cancelled") => {
@@ -1045,96 +1069,194 @@ function AppointmentsTab() {
     }
   };
 
+  // Sort: critical first → pending (new) first → then by date/time asc
+  const sorted = [...appts].sort((a, b) => {
+    if (isCriticalCase(b) !== isCriticalCase(a)) return Number(isCriticalCase(b)) - Number(isCriticalCase(a));
+    const aNew = newIds.has(String(a._id)) ? 0 : 1;
+    const bNew = newIds.has(String(b._id)) ? 0 : 1;
+    if (aNew !== bNew) return aNew - bNew;
+    const aPending = a.status === "pending" ? 0 : 1;
+    const bPending = b.status === "pending" ? 0 : 1;
+    if (aPending !== bPending) return aPending - bPending;
+    return `${a.dateKey || a.date || ""} ${a.time || ""}`.localeCompare(`${b.dateKey || b.date || ""} ${b.time || ""}`);
+  });
+
   if (loading) return <TabSpinner />;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 800, color: C.text }}>Appointments</h2>
-        <span style={{ fontSize: 11, color: C.dim }}>
-          {appts.length} booked
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: C.text }}>Appointments</h2>
+          {refreshing && <Loader size={12} color={C.dim} style={{ animation: "spin 1s linear infinite" }} />}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 11, color: C.dim }}>{appts.length} booked</span>
+          <button onClick={() => loadAppointments(true)} title="Refresh"
+            style={{ display: "inline-flex", alignItems: "center", gap: 4, background: C.cyanBg, border: `1px solid ${C.cyanBdr}`, color: C.cyan, borderRadius: 8, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+            ↻ Refresh
+          </button>
+        </div>
       </div>
+
+      {/* New appointment banner */}
+      <AnimatePresence>
+        {newBanner.length > 0 && (
+          <motion.div
+            key="new-banner"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Bell size={14} color={C.green} style={{ flexShrink: 0 }} />
+              <p style={{ fontSize: 12, fontWeight: 700, color: C.green }}>
+                New appointment{newBanner.length > 1 ? "s" : ""}: {newBanner.join(", ")}
+              </p>
+            </div>
+            <button onClick={() => setNewBanner([])} style={{ background: "transparent", border: "none", color: C.dim, cursor: "pointer" }}>
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {error && <ErrorBox msg={error} />}
-      {appts.length === 0 && !error
+      {sorted.length === 0 && !error
         ? <EmptyState icon={<Calendar size={24} color={C.dim} />} msg="No appointments booked yet" />
-        : [...appts].sort((a, b) => {
-            const criticalDelta = Number(isCriticalCase(b)) - Number(isCriticalCase(a));
-            if (criticalDelta) return criticalDelta;
-            return `${a.dateKey || a.date || ""} ${a.time || ""}`.localeCompare(`${b.dateKey || b.date || ""} ${b.time || ""}`);
-          }).map((appt, i) => {
-            const sc = apptStatusColors[appt.status] || apptStatusColors.scheduled;
-            const isCritical = isCriticalCase(appt);
+        : (() => {
+            const voiceAppts   = sorted.filter(a => a.bookedVia === "voice");
+            const regularAppts = sorted.filter(a => a.bookedVia !== "voice");
+
+            const renderCard = (appt: any, i: number) => {
+            const sc          = apptStatusColors[appt.status] || apptStatusColors.scheduled;
+            const isCritical  = isCriticalCase(appt);
+            const isNew       = newIds.has(String(appt._id));
             const patientName = getAppointmentPatientName(appt);
+            const reason      = appt.reason
+              || (Array.isArray(appt.symptoms) && appt.symptoms.length ? appt.symptoms.join(", ") : "")
+              || appt.specialty
+              || "General consultation";
             const dateText = appt.dateKey
               ? new Date(`${appt.dateKey}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })
               : appt.date
                 ? new Date(appt.date).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })
                 : "";
+            const bookedVia = appt.bookedVia;
+
             return (
               <motion.div key={appt._id || i}
-                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                style={{ ...card({ border: `1px solid ${isCritical ? C.redBdr : C.border}` }), padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 12, background: isCritical ? C.redBg : C.cyanBg, border: `1px solid ${isCritical ? C.redBdr : C.cyanBdr}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    {isCritical ? <AlertCircle size={16} color={C.red} /> : <User size={16} color={C.cyan} />}
-                  </div>
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{patientName}</p>
-                    <p style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>{appt.reason || "General consultation"}</p>
-                    {isCritical && <span style={{ ...badge(statusColors.Critical), marginTop: 6, display: "inline-flex" }}>CRITICAL</span>}
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <Calendar size={11} color={C.dim} />
-                    <span style={{ fontSize: 11, color: C.dim }}>{dateText || "Date not set"}</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <Clock size={11} color={C.dim} />
-                    <span style={{ fontSize: 11, color: C.dim }}>{appt.time || "—"}</span>
-                  </div>
-                  <span style={badge(sc)}>{appt.status || "scheduled"}</span>
-                  {appt.status !== "completed" && (
-                    <div style={{ display: "flex", gap: 6, marginTop: 3 }}>
-                      <button
-                        onClick={() => updateStatus(appt._id, "confirmed")}
-                        disabled={appt.status === "confirmed" || actionId !== null}
-                        title="Confirm appointment"
-                        style={{
-                          display: "inline-flex", alignItems: "center", gap: 4,
-                          background: appt.status === "confirmed" ? "rgba(255,255,255,0.03)" : C.greenBg,
-                          border: `1px solid ${appt.status === "confirmed" ? C.borderMid : C.greenBdr}`,
-                          color: appt.status === "confirmed" ? C.dim : C.green,
-                          borderRadius: 8, padding: "5px 8px", fontSize: 10, fontWeight: 800,
-                          cursor: appt.status === "confirmed" || actionId !== null ? "default" : "pointer",
-                        }}
-                      >
-                        {actionId === `${appt._id}:confirmed` ? <Loader size={11} style={{ animation: "spin 1s linear infinite" }} /> : <CheckCircle size={11} />}
-                        Confirm
-                      </button>
-                      <button
-                        onClick={() => setCancelTarget({ ...appt, patientName })}
-                        disabled={appt.status === "cancelled" || actionId !== null}
-                        title="Cancel appointment"
-                        style={{
-                          display: "inline-flex", alignItems: "center", gap: 4,
-                          background: appt.status === "cancelled" ? "rgba(255,255,255,0.03)" : C.redBg,
-                          border: `1px solid ${appt.status === "cancelled" ? C.borderMid : C.redBdr}`,
-                          color: appt.status === "cancelled" ? C.dim : C.red,
-                          borderRadius: 8, padding: "5px 8px", fontSize: 10, fontWeight: 800,
-                          cursor: appt.status === "cancelled" || actionId !== null ? "default" : "pointer",
-                        }}
-                      >
-                        {actionId === `${appt._id}:cancelled` ? <Loader size={11} style={{ animation: "spin 1s linear infinite" }} /> : <X size={11} />}
-                        Cancel
-                      </button>
+                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                style={{
+                  ...card({
+                    border: `1px solid ${isNew ? "rgba(16,185,129,0.4)" : isCritical ? C.redBdr : C.border}`,
+                    boxShadow: isNew ? "0 0 0 1px rgba(16,185,129,0.15)" : undefined,
+                  }),
+                  padding: "1rem 1.25rem",
+                }}>
+
+                {/* NEW stripe at top */}
+                {isNew && (
+                  <div style={{ height: 2, background: "linear-gradient(90deg, transparent, #10b981, transparent)", margin: "-1rem -1.25rem 0.75rem" }} />
+                )}
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                  {/* Left: patient info */}
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12, minWidth: 0 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: isNew ? "rgba(16,185,129,0.12)" : isCritical ? C.redBg : C.cyanBg, border: `1px solid ${isNew ? "rgba(16,185,129,0.3)" : isCritical ? C.redBdr : C.cyanBdr}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {isCritical ? <AlertCircle size={16} color={C.red} /> : <User size={16} color={isNew ? C.green : C.cyan} />}
                     </div>
-                  )}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{patientName}</p>
+                        {isNew && (
+                          <span style={{ fontSize: 9, fontWeight: 900, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: C.green, borderRadius: 6, padding: "2px 6px", letterSpacing: 0.5, textTransform: "uppercase" }}>NEW</span>
+                        )}
+                        {bookedVia === "voice" && (
+                          <span style={{ fontSize: 9, fontWeight: 700, background: C.purpleBg, border: `1px solid ${C.purpleBdr}`, color: C.purple, borderRadius: 6, padding: "2px 6px", letterSpacing: 0.5, textTransform: "uppercase" }}>Voice</span>
+                        )}
+                        {bookedVia === "emergency" && (
+                          <span style={{ fontSize: 9, fontWeight: 700, background: C.redBg, border: `1px solid ${C.redBdr}`, color: C.red, borderRadius: 6, padding: "2px 6px", letterSpacing: 0.5, textTransform: "uppercase" }}>Emergency</span>
+                        )}
+                      </div>
+                      <p style={{ fontSize: 11, color: C.dim, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 240 }}>{reason}</p>
+                      {isCritical && <span style={{ ...badge(statusColors.Critical), marginTop: 6, display: "inline-flex" }}>CRITICAL</span>}
+                    </div>
+                  </div>
+
+                  {/* Right: date/time/status/actions */}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flexShrink: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <Calendar size={11} color={C.dim} />
+                      <span style={{ fontSize: 11, color: C.dim }}>{dateText || "Date not set"}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <Clock size={11} color={C.dim} />
+                      <span style={{ fontSize: 11, color: C.dim }}>{appt.time || "—"}</span>
+                    </div>
+                    <span style={badge(sc)}>{appt.status || "scheduled"}</span>
+                    {appt.status !== "completed" && (
+                      <div style={{ display: "flex", gap: 6, marginTop: 3 }}>
+                        <button onClick={() => updateStatus(appt._id, "confirmed")}
+                          disabled={appt.status === "confirmed" || actionId !== null}
+                          style={{ display: "inline-flex", alignItems: "center", gap: 4, background: appt.status === "confirmed" ? "rgba(255,255,255,0.03)" : C.greenBg, border: `1px solid ${appt.status === "confirmed" ? C.borderMid : C.greenBdr}`, color: appt.status === "confirmed" ? C.dim : C.green, borderRadius: 8, padding: "5px 8px", fontSize: 10, fontWeight: 800, cursor: appt.status === "confirmed" || actionId !== null ? "default" : "pointer" }}>
+                          {actionId === `${appt._id}:confirmed` ? <Loader size={11} style={{ animation: "spin 1s linear infinite" }} /> : <CheckCircle size={11} />}
+                          Confirm
+                        </button>
+                        <button onClick={() => setCancelTarget({ ...appt, patientName })}
+                          disabled={appt.status === "cancelled" || actionId !== null}
+                          style={{ display: "inline-flex", alignItems: "center", gap: 4, background: appt.status === "cancelled" ? "rgba(255,255,255,0.03)" : C.redBg, border: `1px solid ${appt.status === "cancelled" ? C.borderMid : C.redBdr}`, color: appt.status === "cancelled" ? C.dim : C.red, borderRadius: 8, padding: "5px 8px", fontSize: 10, fontWeight: 800, cursor: appt.status === "cancelled" || actionId !== null ? "default" : "pointer" }}>
+                          {actionId === `${appt._id}:cancelled` ? <Loader size={11} style={{ animation: "spin 1s linear infinite" }} /> : <X size={11} />}
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             );
-          })
+          };  // end renderCard
+
+          return (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", alignItems: "start" }}>
+
+              {/* ── Left column: Voice appointments ── */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: C.purpleBg, border: `1px solid ${C.purpleBdr}`, borderRadius: 10 }}>
+                  <span style={{ fontSize: 14 }}>🎙️</span>
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 800, color: C.purple }}>Voice Bookings</p>
+                    <p style={{ fontSize: 10, color: C.dim, marginTop: 1 }}>{voiceAppts.length} appointment{voiceAppts.length !== 1 ? "s" : ""}</p>
+                  </div>
+                </div>
+                {voiceAppts.length === 0
+                  ? <div style={{ ...card(), padding: "1.5rem", textAlign: "center" }}>
+                      <p style={{ fontSize: 12, color: C.dim }}>No voice bookings yet</p>
+                    </div>
+                  : voiceAppts.map((appt, i) => renderCard(appt, i))
+                }
+              </div>
+
+              {/* ── Right column: Regular appointments ── */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: C.cyanBg, border: `1px solid ${C.cyanBdr}`, borderRadius: 10 }}>
+                  <span style={{ fontSize: 14 }}>📅</span>
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 800, color: C.cyan }}>Regular Bookings</p>
+                    <p style={{ fontSize: 10, color: C.dim, marginTop: 1 }}>{regularAppts.length} appointment{regularAppts.length !== 1 ? "s" : ""}</p>
+                  </div>
+                </div>
+                {regularAppts.length === 0
+                  ? <div style={{ ...card(), padding: "1.5rem", textAlign: "center" }}>
+                      <p style={{ fontSize: 12, color: C.dim }}>No regular bookings yet</p>
+                    </div>
+                  : regularAppts.map((appt, i) => renderCard(appt, i))
+                }
+              </div>
+            </div>
+          );
+        })()
       }
       <AnimatePresence>
         {cancelTarget && (
@@ -1142,7 +1264,7 @@ function AppointmentsTab() {
             appointmentId={cancelTarget._id}
             patientName={cancelTarget.patientName || "Patient"}
             onClose={() => setCancelTarget(null)}
-            onSuccess={loadAppointments}
+            onSuccess={() => loadAppointments(true)}
           />
         )}
       </AnimatePresence>

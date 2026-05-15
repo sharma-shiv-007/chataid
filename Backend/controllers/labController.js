@@ -4,6 +4,24 @@ const Doctor = require("../models/doctor");
 const { createNotif } = require("../services/notificationService");
 const { generateLabReportPdf } = require("../services/labReportPdfService");
 
+const autoFlag = (value, normalRange) => {
+  const num = parseFloat(value);
+  if (isNaN(num) || !normalRange) return "";
+  const rangeMatch = normalRange.match(/^([\d.]+)\s*[-–]\s*([\d.]+)$/);
+  if (rangeMatch) {
+    const min = parseFloat(rangeMatch[1]);
+    const max = parseFloat(rangeMatch[2]);
+    if (num < min) return "low";
+    if (num > max) return "high";
+    return "normal";
+  }
+  const ltMatch = normalRange.match(/^[<≤]([\d.]+)$/);
+  if (ltMatch) return num <= parseFloat(ltMatch[1]) ? "normal" : "high";
+  const gtMatch = normalRange.match(/^[>≥]([\d.]+)$/);
+  if (gtMatch) return num >= parseFloat(gtMatch[1]) ? "normal" : "low";
+  return "";
+};
+
 exports.createOrder = async (req, res) => {
   try {
     const { patientId, tests, priority = "Normal", notes = "" } = req.body;
@@ -130,7 +148,9 @@ exports.saveResults = async (req, res) => {
           value: String(result.value || "").trim(),
           unit: String(result.unit || "").trim(),
           normalRange: String(result.normalRange || "").trim(),
-          flag: ["normal", "low", "high", "critical"].includes(result.flag) ? result.flag : "",
+          flag: ["normal", "low", "high", "critical"].includes(result.flag)
+            ? result.flag
+            : autoFlag(result.value, result.normalRange),
           values: String(result.values || "").trim(),
         })).filter(result => result.testName)
       : [];
@@ -156,7 +176,7 @@ exports.saveResults = async (req, res) => {
 exports.markComplete = async (req, res) => {
   try {
     let order = await LabOrder.findById(req.params.id)
-      .populate("patientId", "name email phone")
+      .populate("patientId", "name email phone age gender")
       .populate("doctorId", "name email specialisation specialization hospital");
 
     if (!order) return res.status(404).json({ error: "Lab order not found." });

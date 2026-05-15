@@ -34,13 +34,13 @@ const doctorDisplayName = (name = "") => {
 };
 
 // Slot button states
-const slotStyle = (booked: boolean, selected: boolean): CSSProperties => ({
+const slotStyle = (booked: boolean, selected: boolean, past?: boolean): CSSProperties => ({
   padding: "8px 12px", borderRadius: 10, fontSize: 12, fontWeight: 700,
   fontFamily: "inherit", cursor: booked ? "not-allowed" : "pointer",
-  border: `1px solid ${booked ? C.borderMid : selected ? C.cyanBdr : C.borderMid}`,
-  background: booked ? "rgba(255,255,255,0.02)" : selected ? C.cyanBg : "rgba(255,255,255,0.03)",
-  color: booked ? C.dim : selected ? C.cyan : C.text,
-  opacity: booked ? 0.5 : 1,
+  border: `1px solid ${past ? "rgba(239,68,68,0.2)" : booked ? C.borderMid : selected ? C.cyanBdr : C.borderMid}`,
+  background: past ? "rgba(239,68,68,0.04)" : booked ? "rgba(255,255,255,0.02)" : selected ? C.cyanBg : "rgba(255,255,255,0.03)",
+  color: past ? "rgba(239,68,68,0.5)" : booked ? C.dim : selected ? C.cyan : C.text,
+  opacity: past ? 0.6 : booked ? 0.5 : 1,
   transition: "all 0.15s",
   position: "relative" as const,
 });
@@ -82,7 +82,7 @@ export default function BookAppointment() {
   const [doctors,   setDoctors]   = useState<any[]>([]);
   const [selDoc,    setSelDoc]    = useState<any>(null);
   const [selDate,   setSelDate]   = useState("");
-  const [slots,     setSlots]     = useState<{ time: string; booked: boolean }[]>([]);
+  const [slots,     setSlots]     = useState<{ time: string; booked: boolean; past?: boolean }[]>([]);
   const [selSlot,   setSelSlot]   = useState("");
   const [reason,    setReason]    = useState("");
   const [slotsMsg,  setSlotsMsg]  = useState("");
@@ -274,7 +274,7 @@ export default function BookAppointment() {
                     Available Slots — {selDate}
                   </p>
                   <p style={{ fontSize: 12, color: C.dim, marginBottom: 16 }}>
-                    Greyed out = already booked. Click an open slot to select it.
+                    Click an open slot to select it. Past and booked slots cannot be chosen.
                   </p>
 
                   {slots.length === 0 ? (
@@ -286,10 +286,14 @@ export default function BookAppointment() {
                       {slots.map(s => (
                         <button key={s.time} disabled={s.booked}
                           onClick={() => { setSelSlot(s.time); setStep(4); }}
-                          style={slotStyle(s.booked, selSlot === s.time)}>
+                          style={slotStyle(s.booked, selSlot === s.time, s.past)}>
                           <Clock size={11} style={{ display: "inline", marginRight: 4 }} />
                           {formatTime(s.time)}
-                          {s.booked && <span style={{ display: "block", fontSize: 9, color: C.dim }}>Booked</span>}
+                          {s.past
+                            ? <span style={{ display: "block", fontSize: 9, color: "rgba(239,68,68,0.6)" }}>Passed</span>
+                            : s.booked
+                              ? <span style={{ display: "block", fontSize: 9, color: C.dim }}>Booked</span>
+                              : null}
                         </button>
                       ))}
                     </div>

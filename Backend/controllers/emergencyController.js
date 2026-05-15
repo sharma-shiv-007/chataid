@@ -171,11 +171,11 @@ exports.bookEmergency = async (req, res) => {
 // ── GET /api/emergency/list ───────────────────────────────────────────────────
 exports.listEmergencies = async (req, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const emergencies = await Appointment.find({
       bookedVia: "emergency",
-      dateKey:   today,
-    }).sort({ aiSeverityScore: -1, createdAt: 1 });
+      createdAt: { $gte: since },
+    }).sort({ aiSeverityScore: -1, createdAt: -1 });
 
     res.json({ emergencies });
   } catch (err) {

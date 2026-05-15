@@ -35,6 +35,7 @@ app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/reports",       require("./routes/reports"));
 app.use("/api/nurses",        require("./routes/nurses"));
 app.use("/api/lab",           require("./routes/lab"));
+app.use("/api/admin",         require("./routes/admin"));
 
 // ── Legacy direct routes (keep for backward compat) ───────────────
 const doctorCtrl = require("./controllers/doctorController");

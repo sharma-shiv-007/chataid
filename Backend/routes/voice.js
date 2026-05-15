@@ -4,8 +4,9 @@ const router  = express.Router();
 const auth    = require("../middleware/auth");
 const ctrl    = require("../controllers/voiceBookingController");
 
+router.get("/doctors",        auth, ctrl.getDoctors);          // GET  /api/voice/doctors
 router.post("/extract",       auth, ctrl.extractFromSpeech);   // POST /api/voice/extract
-router.get("/slots",          auth, ctrl.getSlots);            // GET  /api/voice/slots?date=
+router.get("/slots",          auth, ctrl.getSlots);            // GET  /api/voice/slots?date=&doctorId=
 router.post("/book",          auth, ctrl.bookAppointment);     // POST /api/voice/book
 router.get("/appointments",   auth, ctrl.getMyAppointments);   // GET  /api/voice/appointments
 

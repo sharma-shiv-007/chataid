@@ -7,8 +7,7 @@ import type { AuthUser } from "../auth/AuthContext";
 const GOOGLE_CLIENT_ID = "639757510544-sr6f7jfs3fab6sve0vftgcv8sv0gnc29.apps.googleusercontent.com";
 const API = "http://localhost:5000/api/auth";
 
-type Screen = "select" | "patient" | "doctor" | "nurse" | "admin" | "phone" | "otp" | "forgot" | "resetSent";
-let mockOtp = "";
+type Screen = "select" | "patient" | "doctor" | "nurse" | "admin" | "forgot" | "resetSent";
 
 // ── Styles (module-level so they never recreate) ───────────────────────────────
 const inp: React.CSSProperties = {
@@ -190,8 +189,6 @@ export default function Login() {
   const [email,       setEmail]       = useState("");
   const [password,    setPassword]    = useState("");
   const [showPw,      setShowPw]      = useState(false);
-  const [phone,       setPhone]       = useState("");
-  const [otp,         setOtp]         = useState("");
   const [resetEmail,  setResetEmail]  = useState("");
   const [resetToken,  setResetToken]  = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -304,24 +301,6 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
-  }
-
-  async function sendOtp() {
-    if (!phone.trim() || phone.length < 10) { setError("Enter a valid 10-digit phone number."); return; }
-    setLoading(true); setError("");
-    await new Promise(r => setTimeout(r, 800));
-    mockOtp = "123456";
-    setLoading(false); setScreen("otp");
-  }
-
-  async function verifyOtp() {
-    if (!otp.trim()) { setError("Enter the OTP."); return; }
-    setLoading(true); setError("");
-    await new Promise(r => setTimeout(r, 600));
-    if (otp !== mockOtp) { setError("Wrong OTP. Demo OTP is 123456."); setLoading(false); return; }
-    const u: AuthUser = { name: "Phone User", email: "", phone, role: "patient" };
-    login("", u);
-    doRedirect("patient");
   }
 
   async function handleForgotPassword() {
@@ -460,7 +439,6 @@ export default function Login() {
                 ))}
               </div>
 
-              <button style={ghostBtn} onClick={() => goTo("phone")}>📱 Continue with Phone OTP</button>
             </>
           )}
 
@@ -531,51 +509,6 @@ export default function Login() {
                 hint="admin@aiimsvijaypur.in / Admin@123"
                 onSubmit={() => handleEmailLogin("admin")}
                 onForgotPassword={() => { setResetEmail(email); goTo("forgot"); }} />
-            </>
-          )}
-
-          {/* ── PHONE ── */}
-          {screen === "phone" && (
-            <>
-              <button style={backBtnStyle} onClick={() => goTo("select")}>← back</button>
-              <p style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9", margin: "0 0 4px" }}>Phone Login</p>
-              <p style={{ fontSize: 13, color: "#475569", margin: "0 0 1.25rem" }}>We'll send an OTP to your number</p>
-              <label style={lbl}>Phone Number</label>
-              <div style={{ display: "flex", gap: 8, marginBottom: 4 }}>
-                <div style={{ background: "rgba(15,23,42,0.9)", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 10, padding: "0.7rem 0.9rem", color: "#94a3b8", fontSize: 13 }}>+91</div>
-                <input type="tel" value={phone} maxLength={10}
-                  onChange={e => setPhone(e.target.value.replace(/\D/, ""))}
-                  placeholder="9876543210" onKeyDown={e => e.key === "Enter" && sendOtp()}
-                  style={{ ...inp, flex: 1 }} />
-              </div>
-              <Err msg={error} />
-              <button onClick={sendOtp} disabled={loading}
-                style={{ ...tealBtn, marginTop: 16, opacity: loading ? 0.6 : 1, cursor: loading ? "not-allowed" : "pointer" }}>
-                {loading ? <><Spinner /> Sending…</> : "Send OTP →"}
-              </button>
-            </>
-          )}
-
-          {/* ── OTP ── */}
-          {screen === "otp" && (
-            <>
-              <button style={backBtnStyle} onClick={() => goTo("phone")}>← back</button>
-              <p style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9", margin: "0 0 4px" }}>Enter OTP</p>
-              <p style={{ fontSize: 13, color: "#475569", margin: "0 0 4px" }}>Sent to +91 {phone}</p>
-              <p style={{ fontSize: 12, color: "#2dd4bf", marginBottom: 16 }}>Demo OTP: <strong>123456</strong></p>
-              <input type="text" value={otp} maxLength={6}
-                onChange={e => setOtp(e.target.value.replace(/\D/, ""))}
-                placeholder="123456" onKeyDown={e => e.key === "Enter" && verifyOtp()}
-                style={{ ...inp, textAlign: "center", fontSize: 24, letterSpacing: "0.5em", fontWeight: 700 }} />
-              <Err msg={error} />
-              <button onClick={verifyOtp} disabled={loading}
-                style={{ ...tealBtn, marginTop: 16, opacity: loading ? 0.6 : 1, cursor: loading ? "not-allowed" : "pointer" }}>
-                {loading ? <><Spinner /> Verifying…</> : "Verify & Continue →"}
-              </button>
-              <button onClick={sendOtp}
-                style={{ background: "none", border: "none", color: "#334155", fontSize: 12, cursor: "pointer", width: "100%", textAlign: "center", marginTop: 12, fontFamily: "inherit" }}>
-                Resend OTP
-              </button>
             </>
           )}
 

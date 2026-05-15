@@ -297,11 +297,22 @@ exports.getAvailableSlots = async (req, res) => {
     }).select("time");
     const bookedTimes = new Set(booked.map(a => a.time));
 
-    // Return slots with booked flag
-    const slots = daySchedule.slots.map(s => ({
-      time:   s.time,
-      booked: bookedTimes.has(s.time),
-    }));
+    // For today, also mark past slots as booked so patients can't select them
+    const todayKey = new Date().toISOString().split("T")[0];
+    const isToday  = date === todayKey;
+    const now      = new Date();
+    const nowMins  = now.getHours() * 60 + now.getMinutes();
+
+    const slots = daySchedule.slots.map(s => {
+      const [h, m]   = s.time.split(":").map(Number);
+      const slotMins = h * 60 + m;
+      const isPast   = isToday && slotMins <= nowMins;
+      return {
+        time:   s.time,
+        booked: bookedTimes.has(s.time) || isPast,
+        past:   isPast,
+      };
+    });
 
     res.json({ slots, day: dayOfWeek });
   } catch (err) {

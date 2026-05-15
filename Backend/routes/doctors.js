@@ -5,8 +5,14 @@ const auth    = require("../middleware/auth");
 const upload  = require("../middleware/upload");
 const ctrl    = require("../controllers/doctorController");
 
+const allow = require("../middleware/roleGuard");
+
 // All routes require a valid JWT
 router.use(auth);
+
+// ── Admin only ─────────────────────────────────────────────────────────────
+router.patch("/:id",  allow("admin"), ctrl.updateDoctor);
+router.delete("/:id", allow("admin"), ctrl.deleteDoctor);
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
 router.get("/dashboard", ctrl.getDashboard);
