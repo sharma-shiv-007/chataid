@@ -68,7 +68,42 @@ app.use((err, req, res, _next) => {
   res.status(err.status || 500).json({ error: err.message || "Something went wrong." });
 });
 
+// ── Startup migration: backfill missing uhid on all patients ─────────────────
+async function backfillUhid() {
+  try {
+    const Patient = require("./models/patient");
+
+    // Drop the old plain unique index (uhid_1) if it exists — it blocks null docs
+    try {
+      await Patient.collection.dropIndex("uhid_1");
+      console.log("[migration] Dropped old uhid_1 index");
+    } catch (_) { /* index didn't exist, that's fine */ }
+
+    // Find every patient without a proper string uhid
+    const patients = await Patient.find({
+      $or: [{ uhid: { $exists: false } }, { uhid: null }, { uhid: "" }],
+    }).select("_id");
+
+    if (patients.length === 0) {
+      console.log("[migration] All patients already have a uhid — nothing to do");
+      return;
+    }
+
+    const ops = patients.map(p => ({
+      updateOne: {
+        filter: { _id: p._id },
+        update: { $set: { uhid: `UH-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}` } },
+      },
+    }));
+    const result = await Patient.bulkWrite(ops);
+    console.log(`[migration] Backfilled uhid on ${result.modifiedCount} patient(s)`);
+  } catch (err) {
+    console.error("[migration] uhid backfill failed:", err.message);
+  }
+}
+
 // ── Connect DB & Start ────────────────────────────────────────────
-connectDB().then(() => {
+connectDB().then(async () => {
+  await backfillUhid();
   app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
 });
