@@ -11,7 +11,7 @@ const signToken = (id, role) =>
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   });
 
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const getGoogleClient = () => new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // ── POST /api/auth/signup/patient ─────────────────────────────────────────────
 exports.signupPatient = async (req, res) => {
@@ -162,9 +162,14 @@ exports.googleAuth = async (req, res) => {
       return res.status(400).json({ error: "Google credential required." });
 
     // Verify the Google ID token
-    const ticket = await googleClient.verifyIdToken({
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      console.error("googleAuth: GOOGLE_CLIENT_ID env var is not set");
+      return res.status(500).json({ error: "Server misconfiguration: missing Google Client ID." });
+    }
+    const ticket = await getGoogleClient().verifyIdToken({
       idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: clientId,
     });
     const payload = ticket.getPayload();
     const { name, email, picture } = payload;
