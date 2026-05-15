@@ -1,6 +1,7 @@
 // Frontend/src/pages/DoctorDashboard.tsx  ── complete drop-in replacement
 import React, { useEffect, useState, useRef, type CSSProperties } from "react";
 import { useIsMobile } from "../hooks/useIsMobile";
+import ThemeToggle from "../components/ThemeToggle";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -19,12 +20,12 @@ const C = {
   cyan:      "#06b6d4",
   cyanBg:    "rgba(6,182,212,0.08)",
   cyanBdr:   "rgba(6,182,212,0.22)",
-  bg:        "#020817",
-  surface:   "rgba(12,20,38,0.85)",
-  border:    "rgba(148,163,184,0.07)",
-  borderMid: "rgba(148,163,184,0.14)",
-  text:      "#e2e8f0",
-  dim:       "#64748b",
+  bg:        "var(--page-bg, #020817)",
+  surface:   "var(--surface-2, rgba(12,20,38,0.85))",
+  border:    "var(--border-c, rgba(148,163,184,0.07))",
+  borderMid: "var(--border-mid, rgba(148,163,184,0.14))",
+  text:      "var(--text, #e2e8f0)",
+  dim:       "var(--text-dim, #64748b)",
   green:     "#10b981",
   greenBg:   "rgba(16,185,129,0.08)",
   greenBdr:  "rgba(16,185,129,0.22)",
@@ -1553,7 +1554,7 @@ export default function DoctorDashboard() {
       {/* Navbar */}
       <nav style={{
         position: "sticky", top: 0, zIndex: 50,
-        background: "rgba(2,8,23,0.88)", backdropFilter: "blur(20px)",
+        background: "var(--nav-bg, rgba(2,8,23,0.88))", backdropFilter: "blur(20px)",
         borderBottom: `1px solid ${C.border}`, padding: "0 1.5rem",
         height: 56, display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
@@ -1588,6 +1589,7 @@ export default function DoctorDashboard() {
           {user?.name && !isMobile && (
             <span style={{ fontSize: 12, color: C.dim }}>{formatDoctorName(user.name)}</span>
           )}
+          <ThemeToggle size={14} />
           <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => navigate("/lab/doctor-reports")}
             style={{ display: "flex", alignItems: "center", gap: 6, background: C.cyanBg, border: `1px solid ${C.cyanBdr}`, color: C.cyan, padding: isMobile ? "7px 9px" : "6px 12px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }}>
             <FlaskConical size={13} />{!isMobile && " Lab Results"}
@@ -1602,7 +1604,7 @@ export default function DoctorDashboard() {
       {/* Tab bar */}
       <div style={{
         position: "sticky", top: 56, zIndex: 40,
-        background: "rgba(2,8,23,0.9)", backdropFilter: "blur(16px)",
+        background: "var(--tab-bg, rgba(2,8,23,0.9))", backdropFilter: "blur(16px)",
         borderBottom: `1px solid ${C.border}`, padding: "0 1.5rem",
         display: "flex", gap: 2, overflowX: "auto",
       }}>

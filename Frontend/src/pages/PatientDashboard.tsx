@@ -1,6 +1,7 @@
 // Frontend/src/pages/PatientDashboard.tsx  ── complete drop-in replacement
 import { useEffect, useState } from "react";
 import { useIsMobile } from "../hooks/useIsMobile";
+import ThemeToggle from "../components/ThemeToggle";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -20,11 +21,11 @@ import { labService, type LabOrder } from "../services/labService";
 const CYAN     = "#06b6d4";
 const CYAN_BG  = "rgba(6,182,212,0.1)";
 const CYAN_BDR = "rgba(6,182,212,0.25)";
-const BG       = "#020817";
-const SURFACE  = "rgba(15,23,42,0.7)";
-const BORDER   = "rgba(148,163,184,0.08)";
-const TEXT      = "#e2e8f0";
-const TEXT_DIM  = "#64748b";
+const BG       = "var(--page-bg, #020817)";
+const SURFACE  = "var(--surface, rgba(15,23,42,0.7))";
+const BORDER   = "var(--border-c, rgba(148,163,184,0.08))";
+const TEXT      = "var(--text, #e2e8f0)";
+const TEXT_DIM  = "var(--text-dim, #64748b)";
 const GREEN     = "#10b981";
 const RED       = "#ef4444";
 const VIOLET    = "#8b5cf6";
@@ -622,6 +623,7 @@ export default function PatientDashboard() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {saveMsg && <span style={{ fontSize: 12, color: saveMsg.includes("✓") ? GREEN : RED, fontWeight: 600 }}>{saveMsg}</span>}
+          <ThemeToggle size={14} />
           <button onClick={() => navigate("/voice")} style={{ display: "flex", alignItems: "center", gap: 5, background: CYAN_BG, border: `1px solid ${CYAN_BDR}`, color: CYAN, padding: isMobile ? "7px 9px" : "5px 10px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: 700 }}>
             <Mic size={13} />{!isMobile && " Voice Book"}
           </button>

@@ -125,6 +125,33 @@
   }
 }
 
+/* ── Light mode overrides for Tailwind-based pages (AdminDashboard) ────────── */
+html:not(.dark) .bg-gradient-to-br.from-slate-950 {
+  background: linear-gradient(to bottom right, #f1f5f9, #e2e8f0) !important;
+}
+html:not(.dark) .bg-slate-800\/80 {
+  background: rgba(255,255,255,0.95) !important;
+  border-color: rgba(0,0,0,0.1) !important;
+}
+html:not(.dark) .bg-slate-900\/60,
+html:not(.dark) .bg-slate-900\/50,
+html:not(.dark) .bg-slate-900\/40 {
+  background: rgba(255,255,255,0.9) !important;
+}
+html:not(.dark) .text-white { color: #0f172a !important; }
+html:not(.dark) .text-slate-400 { color: #475569 !important; }
+html:not(.dark) .text-slate-300 { color: #334155 !important; }
+html:not(.dark) .text-slate-200 { color: #1e293b !important; }
+html:not(.dark) .border-slate-700 { border-color: rgba(0,0,0,0.1) !important; }
+html:not(.dark) .border-slate-600 { border-color: rgba(0,0,0,0.12) !important; }
+html:not(.dark) .bg-slate-700,
+html:not(.dark) .bg-slate-700\/60 { background: rgba(0,0,0,0.06) !important; }
+
+/* Fix ca-mobile flex display in LandingPage */
+@media (max-width: 768px) {
+  .ca-mobile { display: flex !important; }
+}
+
 /* ── Global mobile responsive fixes ───────────────────────────────────────── */
 
 /* Prevent horizontal overflow on all pages */

@@ -8,6 +8,8 @@ import {
   Twitter, Github, Linkedin, Mail, Phone, Shield, Clock, Users,
   Info, Home,
 } from "lucide-react";
+import ThemeToggle from "../components/ThemeToggle";
+import { useTheme } from "../contexts/ThemeContext";
 
 // ─── Types / constants ────────────────────────────────────────────────────────
 type CubicBezier = [number, number, number, number];
@@ -123,7 +125,7 @@ function Navbar() {
         transition={{ duration: 0.55, ease: EASE }}
         style={{
           position: "fixed", top: 0, left: 0, right: 0, zIndex: 200,
-          background: scrolled ? "rgba(2,8,23,0.94)" : "rgba(2,8,23,0.6)",
+          background: scrolled ? "var(--nav-bg, rgba(2,8,23,0.94))" : "var(--page-bg-alpha, rgba(2,8,23,0.6))",
           backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)",
           borderBottom: `1px solid ${scrolled ? "rgba(6,182,212,0.18)" : "rgba(148,163,184,0.07)"}`,
           transition: "background 0.3s, border-color 0.3s",
@@ -155,8 +157,9 @@ function Navbar() {
 
           {/* ── Right actions (desktop) ── */}
           <div className="ca-desktop" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <ThemeToggle size={15} />
             <button onClick={() => navigate("/login")}
-              style={{ background: "transparent", border: "1px solid rgba(148,163,184,0.22)", color: "#e2e8f0", borderRadius: 8, padding: "8px 18px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+              style={{ background: "transparent", border: "1px solid rgba(148,163,184,0.22)", color: "var(--text, #e2e8f0)", borderRadius: 8, padding: "8px 18px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
               Login
             </button>
             <button onClick={() => navigate("/signup")}
@@ -166,10 +169,13 @@ function Navbar() {
           </div>
 
           {/* ── Hamburger (mobile) ── */}
-          <button onClick={() => setOpen(true)} className="ca-mobile"
-            style={{ display: "none", background: "transparent", border: "1px solid rgba(148,163,184,0.2)", color: "#e2e8f0", borderRadius: 8, padding: "8px", cursor: "pointer" }}>
-            <Menu size={20} />
-          </button>
+          <div className="ca-mobile" style={{ display: "none", alignItems: "center", gap: 8 }}>
+            <ThemeToggle size={15} />
+            <button onClick={() => setOpen(true)}
+              style={{ background: "transparent", border: "1px solid rgba(148,163,184,0.2)", color: "#e2e8f0", borderRadius: 8, padding: "8px", cursor: "pointer" }}>
+              <Menu size={20} />
+            </button>
+          </div>
         </div>
       </motion.nav>
 
@@ -531,7 +537,7 @@ function Footer() {
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function LandingPage() {
   return (
-    <div style={{ minHeight: "100vh", background: "#020817", color: "#e2e8f0", fontFamily: "'DM Sans', sans-serif", position: "relative", overflowX: "hidden" }}>
+    <div style={{ minHeight: "100vh", background: "var(--page-bg, #020817)", color: "var(--text, #e2e8f0)", fontFamily: "'DM Sans', sans-serif", position: "relative", overflowX: "hidden" }}>
       {/* Grid bg */}
       <div style={{ position: "fixed", inset: 0, backgroundImage: "linear-gradient(rgba(6,182,212,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(6,182,212,0.03) 1px, transparent 1px)", backgroundSize: "40px 40px", pointerEvents: "none", zIndex: 0 }} />
       <Navbar />

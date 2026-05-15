@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
+import ThemeToggle from "../components/ThemeToggle";
 
 const SPECIALISATIONS = [
   "General Medicine",
@@ -473,6 +474,7 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          <ThemeToggle size={14} />
           {emergencies.length > 0 && (
             <button onClick={() => setActiveTab("emergency")}
               className="flex items-center gap-1 bg-red-600/20 border border-red-500/30 text-red-400 px-2 py-1.5 rounded-lg text-xs animate-pulse">

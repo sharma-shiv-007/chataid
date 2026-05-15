@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { ThemeProvider } from "./contexts/ThemeContext";
 
 import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";        // ← NEW
@@ -107,6 +108,7 @@ function GlobalEmergencyButton() {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <ThemeProvider>
     <AuthProvider>
       <TooltipProvider>
         <Toaster />
@@ -199,6 +201,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
