@@ -354,4 +354,9 @@ const generateLabReportPdf = async (order) => {
   return { filename, filePath };
 };
 
-module.exports = { generateLabReportPdf };
+const generateLabReportPdfBuffer = (order) => {
+  const streams = buildContentStream(order);
+  return createPdfBuffer(streams);
+};
+
+module.exports = { generateLabReportPdf, generateLabReportPdfBuffer };

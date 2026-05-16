@@ -1,4 +1,5 @@
 import { Download, FileText } from "lucide-react";
+import { useState } from "react";
 import type { LabOrder, LabResult } from "../../services/labService";
 import StatusBadge from "./StatusBadge";
 
@@ -22,9 +23,37 @@ const FlagBadge = ({ flag }: { flag?: LabResult["flag"] }) => {
   );
 };
 
+async function fetchPdfBlob(url: string): Promise<Blob> {
+  const token = localStorage.getItem("medicare_token");
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error("Could not load PDF");
+  return res.blob();
+}
+
 export default function ReportViewer({ report }: { report: LabOrder }) {
-  const downloadPdf = () => {
-    if (report.resultPdfUrl) window.open(report.resultPdfUrl, "_blank", "noopener,noreferrer");
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError,   setPdfError]   = useState("");
+
+  const handlePdf = async (mode: "open" | "download") => {
+    if (!report.resultPdfUrl) return;
+    setPdfLoading(true); setPdfError("");
+    try {
+      const blob = await fetchPdfBlob(report.resultPdfUrl);
+      const blobUrl = URL.createObjectURL(blob);
+      if (mode === "open") {
+        window.open(blobUrl, "_blank", "noopener,noreferrer");
+      } else {
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = `lab-report-${report._id}.pdf`;
+        a.click();
+      }
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+    } catch {
+      setPdfError("Could not load PDF. Please try again.");
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   return (
@@ -63,18 +92,24 @@ export default function ReportViewer({ report }: { report: LabOrder }) {
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={downloadPdf}
-          disabled={!report.resultPdfUrl}
+          onClick={() => handlePdf("download")}
+          disabled={!report.resultPdfUrl || pdfLoading}
           className="inline-flex items-center gap-2 rounded-lg border border-teal-500/30 px-3 py-2 text-xs font-bold text-teal-300 hover:bg-teal-500/10 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Download size={14} /> Download as PDF
+          <Download size={14} /> {pdfLoading ? "Loading…" : "Download as PDF"}
         </button>
         {report.resultPdfUrl && (
-          <a href={report.resultPdfUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800">
+          <button
+            type="button"
+            onClick={() => handlePdf("open")}
+            disabled={pdfLoading}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+          >
             <FileText size={14} /> Open PDF
-          </a>
+          </button>
         )}
       </div>
+      {pdfError && <p className="mt-2 text-xs text-red-400">{pdfError}</p>}
     </div>
   );
 }

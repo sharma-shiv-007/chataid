@@ -319,7 +319,7 @@ export default function AdminDashboard() {
   };
 
   const updateDoctorForm = (field: keyof typeof emptyDoctorForm) =>
-    (e: ChangeEvent<HTMLInputElement>) => setDoctorForm(prev => ({ ...prev, [field]: e.target.value }));
+    (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setDoctorForm(prev => ({ ...prev, [field]: e.target.value }));
 
   const updateNurseForm = (field: keyof typeof emptyNurseForm) =>
     (e: ChangeEvent<HTMLInputElement>) => setNurseForm(prev => ({ ...prev, [field]: e.target.value }));

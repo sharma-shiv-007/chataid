@@ -2,7 +2,7 @@ const LabOrder = require("../models/labOrder");
 const Patient = require("../models/patient");
 const Doctor = require("../models/doctor");
 const { createNotif } = require("../services/notificationService");
-const { generateLabReportPdf } = require("../services/labReportPdfService");
+const { generateLabReportPdf, generateLabReportPdfBuffer } = require("../services/labReportPdfService");
 
 const autoFlag = (value, normalRange) => {
   const num = parseFloat(value);
@@ -184,8 +184,8 @@ exports.markComplete = async (req, res) => {
     order.status = "completed";
     order.completedAt = new Date();
 
-    const report = await generateLabReportPdf(order);
-    order.resultPdfUrl = `${req.protocol}://${req.get("host")}/uploads/${report.filename}`;
+    // Store an API URL so the PDF is generated on-demand (Render filesystem is ephemeral)
+    order.resultPdfUrl = `${req.protocol}://${req.get("host")}/api/lab/reports/${order._id}/pdf`;
     await order.save();
 
     order = await LabOrder.findById(order._id)
@@ -213,6 +213,29 @@ exports.markComplete = async (req, res) => {
   } catch (err) {
     console.error("completeLabOrder:", err);
     res.status(500).json({ error: "Could not complete lab order." });
+  }
+};
+
+exports.streamReportPdf = async (req, res) => {
+  try {
+    const order = await LabOrder.findById(req.params.id)
+      .populate("patientId", "name email phone age gender")
+      .populate("doctorId", "name email specialisation specialization hospital");
+
+    if (!order || order.status !== "completed")
+      return res.status(404).json({ error: "Report not found." });
+
+    const buffer = generateLabReportPdfBuffer(order);
+    const filename = `lab-report-${order._id}.pdf`;
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `inline; filename="${filename}"`,
+      "Content-Length": buffer.length,
+    });
+    res.send(buffer);
+  } catch (err) {
+    console.error("streamReportPdf:", err);
+    res.status(500).json({ error: "Could not generate report PDF." });
   }
 };
 
