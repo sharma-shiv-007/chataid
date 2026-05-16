@@ -39,6 +39,42 @@ Rules:
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+// Remove conversational prefixes from name
+const cleanName = (value = "") =>
+  String(value)
+    .replace(/^(my name is|i am called|i am|i'm|mera naam|naam hai mera|mera naam hai|naam hai|naam)\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+// Extract just the number from "I am 22 years old", "22 saal", "age is 22", etc.
+const cleanAge = (value = "") => {
+  const match = String(value).match(/\b(\d{1,3})\b/);
+  return match ? match[1] : String(value).trim();
+};
+
+// Extract male/female/other regardless of phrasing
+const cleanGender = (value = "") => {
+  const t = String(value).toLowerCase();
+  if (/\b(male|man|boy|ladka|purush|m)\b/.test(t))   return "Male";
+  if (/\b(female|woman|girl|ladki|mahila|f)\b/.test(t)) return "Female";
+  if (/\b(other|non.?binary|prefer not)\b/.test(t))  return "Other";
+  return String(value).trim();
+};
+
+// Clean symptom answer — strip leading filler phrases
+const cleanSymptomText = (value = "") =>
+  String(value)
+    .replace(/^(i have|i am having|i am suffering from|suffering from|mujhe|mujhko|mere ko)\s+/i, "")
+    .trim();
+
+// Clean duration — strip filler
+const cleanDuration = (value = "") =>
+  String(value)
+    .replace(/^(for|since|from|se|pichle|last)\s+/i, "")
+    .replace(/^(it has been|its been|iske liye)\s+/i, "")
+    .trim();
+
 const normalizeUrgency = (value = "") => {
   const t = String(value).toLowerCase();
   if (/(emergency|can't breathe|chest pain|stroke|bleeding|severe|unconscious|behosh|seene mein dard|zyada khoon)/.test(t)) return "emergency";
@@ -47,7 +83,7 @@ const normalizeUrgency = (value = "") => {
 };
 
 const splitSymptoms = (value = "") =>
-  String(value).split(/,| and | with |\n/i).map(s => s.trim()).filter(Boolean);
+  String(value).split(/,| and | with | also |\n/i).map(s => s.trim()).filter(Boolean);
 
 const normalizeSpecialty = (value = "", symptoms = []) => {
   const t = `${value} ${symptoms.join(" ")}`.toLowerCase();
@@ -66,17 +102,18 @@ const normalizeSpecialty = (value = "", symptoms = []) => {
 // Q&A positional fallback — answers joined by '|'
 const fallbackExtract = (transcript = "") => {
   const answers = transcript.split("|").map(a => a.trim());
-  const symptoms = splitSymptoms(answers[3] || "");
+  const rawSymptoms = cleanSymptomText(answers[3] || "");
+  const symptoms = splitSymptoms(rawSymptoms);
   return {
-    patientName:       answers[0] || "",
-    age:               answers[1] || "",
-    gender:            answers[2] || "",
+    patientName:        cleanName(answers[0] || ""),
+    age:                cleanAge(answers[1] || ""),
+    gender:             cleanGender(answers[2] || ""),
     symptoms,
-    symptomDuration:   answers[4] || "",
-    urgency:           normalizeUrgency(answers[5] || transcript),
+    symptomDuration:    cleanDuration(answers[4] || ""),
+    urgency:            normalizeUrgency(answers[5] || transcript),
     preferredSpecialty: normalizeSpecialty("", symptoms),
-    appointmentType:   "in-person",
-    notes:             answers[6] || "",
+    appointmentType:    "in-person",
+    notes:              answers[6] || "",
   };
 };
 
@@ -86,9 +123,9 @@ const cleanExtracted = (raw = {}, transcript = "") => {
     ? raw.symptoms.filter(Boolean)
     : splitSymptoms(raw.symptoms || fb.symptoms.join(", "));
   return {
-    patientName:        raw.patientName        || fb.patientName,
-    age:                String(raw.age         || fb.age || ""),
-    gender:             raw.gender             || fb.gender,
+    patientName:        cleanName(raw.patientName || fb.patientName),
+    age:                cleanAge(String(raw.age || fb.age || "")),
+    gender:             cleanGender(raw.gender || fb.gender),
     symptoms:           sym,
     symptomDuration:    raw.symptomDuration    || fb.symptomDuration,
     urgency:            normalizeUrgency(raw.urgency || fb.urgency),
