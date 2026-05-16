@@ -147,7 +147,7 @@ export default function EmergencyVoiceBooking() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { setNoSpeech(true); return null; }
     const r = new SR();
-    r.continuous = false; r.interimResults = true; r.lang = lang;
+    r.continuous = true; r.interimResults = true; r.lang = lang;
     return r;
   }, [lang]);
 
@@ -160,24 +160,28 @@ export default function EmergencyVoiceBooking() {
 
   // ── Recording ───────────────────────────────────────────────────────────────
   const startListening = useCallback(() => {
-    const r = getSpeech();
-    if (!r) return;
-    recogRef.current = r;
-    let finalText = "";
+    // Cancel TTS first and wait for audio to settle before opening mic
+    window.speechSynthesis?.cancel();
+    setTimeout(() => {
+      const r = getSpeech();
+      if (!r) return;
+      recogRef.current = r;
+      let finalText = "";
 
-    r.onstart  = () => { window.speechSynthesis?.cancel(); setListening(true); };
-    r.onresult = (e: SpeechRecognitionEvent) => {
-      let interim_ = "", final_ = "";
-      for (let i = e.results.length - 1; i >= 0; i--) {
-        if (e.results[i].isFinal) { final_ = e.results[i][0].transcript; break; }
-        else interim_ = e.results[i][0].transcript;
-      }
-      if (final_) finalText = final_;
-      setInterim(interim_ || final_);
-    };
-    r.onend    = () => { setListening(false); setInterim(""); if (finalText.trim()) submitAnswer(finalText.trim()); };
-    r.onerror  = () => { setListening(false); setInterim(""); };
-    r.start();
+      r.onstart  = () => { setListening(true); };
+      r.onresult = (e: SpeechRecognitionEvent) => {
+        let allFinal = "", currentInterim = "";
+        for (let i = 0; i < e.results.length; i++) {
+          if (e.results[i].isFinal) allFinal += e.results[i][0].transcript + " ";
+          else currentInterim += e.results[i][0].transcript;
+        }
+        if (allFinal.trim()) finalText = allFinal.trim();
+        setInterim(currentInterim || allFinal.trim());
+      };
+      r.onend    = () => { setListening(false); setInterim(""); if (finalText.trim()) submitAnswer(finalText.trim()); };
+      r.onerror  = (e: any) => { setListening(false); setInterim(""); if (e.error !== "no-speech") setError(`Mic error: ${e.error}`); };
+      r.start();
+    }, 300);
   }, [questionIdx, userAnswers]); // eslint-disable-line
 
   const stopListening = () => recogRef.current?.stop();
