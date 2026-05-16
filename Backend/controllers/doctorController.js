@@ -71,7 +71,7 @@ async function attachAppointmentNames(appts) {
 
   const normalized = appts.map(a => {
     const phoneMatch = patientByPhone.get(normalizePhone(a.phone));
-    const patientName = a.patientId?.name || a.patient?.name || a.patientName || phoneMatch?.name || "Unknown";
+    const patientName = a.patientName || a.patientId?.name || a.patient?.name || phoneMatch?.name || "Unknown";
     if (!a.patientName && patientName !== "Unknown") {
       backfills.push(
         Appointment.updateOne({ _id: a._id, patientName: "" }, { $set: { patientName } })

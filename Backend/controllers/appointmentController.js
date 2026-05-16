@@ -9,7 +9,7 @@ const n8n                = require("../services/n8nService");
 
 const appointmentResponse = (a) => ({
   ...a.toObject(),
-  patientName: a.patientId?.name || a.patient?.name || a.patientName || "Unknown",
+  patientName: a.patientName || a.patientId?.name || a.patient?.name || "Unknown",
   patientId:   a.patientId?._id || a.patientId,
 });
 
