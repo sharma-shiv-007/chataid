@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(git -C \"c:\\\\Users\\\\HP\\\\Documents\\\\chat-aid-clinic-main\" push origin main)",
+      "PowerShell(git -C \"c:\\\\Users\\\\HP\\\\Documents\\\\chat-aid-clinic-main\" add render.yaml Frontend/vercel.json)",
+      "PowerShell(git -C \"c:\\\\Users\\\\HP\\\\Documents\\\\chat-aid-clinic-main\" add Frontend/vercel.json)"
+    ]
+  }
+}

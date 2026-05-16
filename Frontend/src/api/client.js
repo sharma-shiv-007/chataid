@@ -98,6 +98,9 @@ export const api = {
   getTodayAppointments: () =>
     fetch(`${BASE}/doctor/appointments/today`, { headers: headers() }).then(handleRes),
 
+  getUpcomingAppointments: () =>
+    fetch(`${BASE}/doctor/appointments/upcoming`, { headers: headers() }).then(handleRes),
+
   updateAppointmentStatus: (id, status) =>
     fetch(`${BASE}/doctor/appointments/${id}/status`, {
       method: "PATCH", headers: headers(), body: JSON.stringify({ status }),

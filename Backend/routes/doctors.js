@@ -18,8 +18,9 @@ router.delete("/:id", allow("admin"), ctrl.deleteDoctor);
 router.get("/dashboard", ctrl.getDashboard);
 
 // ── Appointments ───────────────────────────────────────────────────────────
-router.get("/appointments",       ctrl.getAppointments);
-router.get("/appointments/today", ctrl.getTodayAppointments);
+router.get("/appointments",          ctrl.getAppointments);
+router.get("/appointments/today",    ctrl.getTodayAppointments);
+router.get("/appointments/upcoming", ctrl.getUpcomingAppointments);
 router.patch("/appointments/:id/status", ctrl.updateAppointmentStatus);
 
 // ── Patients ───────────────────────────────────────────────────────────────

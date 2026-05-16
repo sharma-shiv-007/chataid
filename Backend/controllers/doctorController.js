@@ -139,6 +139,25 @@ exports.getTodayAppointments = async (req, res) => {
   }
 };
 
+exports.getUpcomingAppointments = async (req, res) => {
+  try {
+    const today = todayKey();
+    const appts = await Appointment.find({
+      ...doctorAppointmentFilter(req.user.id),
+      dateKey: { $gt: today },
+      status: { $nin: ["cancelled"] },
+    })
+      .populate("patient", "name email age gender")
+      .populate("patientId", "name email age gender")
+      .sort({ dateKey: 1, time: 1 });
+
+    res.json({ appointments: await attachAppointmentNames(appts) });
+  } catch (err) {
+    console.error("getUpcomingAppointments:", err);
+    res.status(500).json({ error: "Could not fetch upcoming appointments." });
+  }
+};
+
 exports.getAppointments = async (req, res) => {
   try {
     const appts = await Appointment.find(doctorAppointmentFilter(req.user.id))
