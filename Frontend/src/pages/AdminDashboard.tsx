@@ -147,9 +147,9 @@ export default function AdminDashboard() {
   };
 
   const dismissEmergency = async (id: string) => {
-    setDismissedIds(prev => new Set([...prev, id]));
     setEmergencies(prev => prev.filter(e => e._id !== id));
-    api.patch(`/appointments/${id}/status`, { status: "acknowledged" }).catch(() => {});
+    api.patch(`/appointments/${id}/status`, { status: "acknowledged" })
+      .catch(err => setEmergencyError(err?.message || "Could not mark as done."));
   };
 
   useEffect(() => {

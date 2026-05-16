@@ -24,7 +24,7 @@ router.get("/emergencies", auth, allow("doctor"), ctrl.getEmergencies);
 router.get("/admin",       auth, allow("admin"), ctrl.getAdminAppointments);
 router.post("/book",       auth, ctrl.bookAppointment);
 router.post("/",           optionalAuth, ctrl.bookAppointment);
-router.patch("/:id/status",auth, allow("doctor"), ctrl.updateStatus);
+router.patch("/:id/status",auth, allow("doctor", "admin"), ctrl.updateStatus);
 router.patch("/:id/reschedule", auth, ctrl.rescheduleAppointment);
 router.delete("/:id",      auth, ctrl.cancelAppointment);
 

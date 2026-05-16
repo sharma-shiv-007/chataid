@@ -131,9 +131,10 @@ const VitalBox = ({ icon: Icon, label, value, unit, critical }: {
 );
 
 // ─── Editable field ─────────────────────────────────────────────────────────
-function EditableRow({ label, icon: Icon, value, field, editing, draft, onChange }: {
+function EditableRow({ label, icon: Icon, value, field, editing, draft, onChange, options }: {
   label: string; icon: React.ElementType; value?: string; field: string;
   editing: boolean; draft: Record<string, string>; onChange: (f: string, v: string) => void;
+  options?: string[];
 }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${BORDER}` }}>
@@ -142,11 +143,21 @@ function EditableRow({ label, icon: Icon, value, field, editing, draft, onChange
       </div>
       <span style={{ fontSize: 11, color: TEXT_DIM, width: 90, flexShrink: 0, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase" }}>{label}</span>
       {editing ? (
-        <input
-          value={draft[field] ?? value ?? ""}
-          onChange={e => onChange(field, e.target.value)}
-          style={{ flex: 1, background: "rgba(6,182,212,0.05)", border: `1px solid ${CYAN_BDR}`, borderRadius: 8, padding: "4px 10px", color: TEXT, fontSize: 13, outline: "none" }}
-        />
+        options ? (
+          <select
+            value={draft[field] ?? value ?? ""}
+            onChange={e => onChange(field, e.target.value)}
+            style={{ flex: 1, background: "rgba(6,182,212,0.05)", border: `1px solid ${CYAN_BDR}`, borderRadius: 8, padding: "4px 10px", color: TEXT, fontSize: 13, outline: "none" }}>
+            <option value="">Select…</option>
+            {options.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        ) : (
+          <input
+            value={draft[field] ?? value ?? ""}
+            onChange={e => onChange(field, e.target.value)}
+            style={{ flex: 1, background: "rgba(6,182,212,0.05)", border: `1px solid ${CYAN_BDR}`, borderRadius: 8, padding: "4px 10px", color: TEXT, fontSize: 13, outline: "none" }}
+          />
+        )
       ) : (
         <span style={{ fontSize: 13, color: TEXT, fontWeight: 500 }}>{value || "—"}</span>
       )}
@@ -762,8 +773,7 @@ export default function PatientDashboard() {
                   <EditableRow label="Phone"     icon={Phone}       field="phone"           value={patient?.phone}          editing={editSection === "profile"} draft={draft} onChange={handleChange} />
                   <EditableRow label="Address"   icon={MapPin}      field="address"         value={patient?.address}        editing={editSection === "profile"} draft={draft} onChange={handleChange} />
                   <EditableRow label="City"      icon={MapPin}      field="city"            value={patient?.city}           editing={editSection === "profile"} draft={draft} onChange={handleChange} />
-                  <EditableRow label="Emergency" icon={AlertCircle} field="emergencyName"   value={patient?.emergencyName}  editing={editSection === "profile"} draft={draft} onChange={handleChange} />
-                  <EditableRow label="Em. Phone" icon={Phone}       field="emergencyContact" value={patient?.emergencyContact} editing={editSection === "profile"} draft={draft} onChange={handleChange} />
+                  <EditableRow label="Gender"    icon={User}        field="gender"          value={patient?.gender}         editing={editSection === "profile"} draft={draft} onChange={handleChange} options={["Male", "Female", "Other", "Prefer not to say"]} />
                   <LockedRow   label="Age / DOB" icon={Calendar}    value={patient?.age ? `${patient.age} yrs${patient.dob ? ` · ${patient.dob}` : ""}` : patient?.dob} />
                   <LockedRow   label="Blood"     icon={Droplets}    value={patient?.blood} />
                   {editSection === "profile" && (
