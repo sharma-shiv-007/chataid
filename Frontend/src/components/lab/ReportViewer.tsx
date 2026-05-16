@@ -1,5 +1,6 @@
 import { Download, FileText } from "lucide-react";
 import { useState } from "react";
+import API_BASE from "../../config/api";
 import type { LabOrder, LabResult } from "../../services/labService";
 import StatusBadge from "./StatusBadge";
 
@@ -23,10 +24,11 @@ const FlagBadge = ({ flag }: { flag?: LabResult["flag"] }) => {
   );
 };
 
-async function fetchPdfBlob(url: string): Promise<Blob> {
+async function fetchPdfBlob(reportId: string): Promise<Blob> {
   const token = localStorage.getItem("medicare_token");
+  const url = `${API_BASE}/lab/reports/${reportId}/pdf`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!res.ok) throw new Error("Could not load PDF");
+  if (!res.ok) throw new Error(`${res.status}`);
   return res.blob();
 }
 
@@ -35,10 +37,9 @@ export default function ReportViewer({ report }: { report: LabOrder }) {
   const [pdfError,   setPdfError]   = useState("");
 
   const handlePdf = async (mode: "open" | "download") => {
-    if (!report.resultPdfUrl) return;
     setPdfLoading(true); setPdfError("");
     try {
-      const blob = await fetchPdfBlob(report.resultPdfUrl);
+      const blob = await fetchPdfBlob(report._id);
       const blobUrl = URL.createObjectURL(blob);
       if (mode === "open") {
         window.open(blobUrl, "_blank", "noopener,noreferrer");
@@ -93,21 +94,19 @@ export default function ReportViewer({ report }: { report: LabOrder }) {
         <button
           type="button"
           onClick={() => handlePdf("download")}
-          disabled={!report.resultPdfUrl || pdfLoading}
+          disabled={pdfLoading}
           className="inline-flex items-center gap-2 rounded-lg border border-teal-500/30 px-3 py-2 text-xs font-bold text-teal-300 hover:bg-teal-500/10 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Download size={14} /> {pdfLoading ? "Loading…" : "Download as PDF"}
         </button>
-        {report.resultPdfUrl && (
-          <button
-            type="button"
-            onClick={() => handlePdf("open")}
-            disabled={pdfLoading}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 disabled:opacity-50"
-          >
-            <FileText size={14} /> Open PDF
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => handlePdf("open")}
+          disabled={pdfLoading}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+        >
+          <FileText size={14} /> Open PDF
+        </button>
       </div>
       {pdfError && <p className="mt-2 text-xs text-red-400">{pdfError}</p>}
     </div>

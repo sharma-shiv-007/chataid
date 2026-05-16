@@ -184,8 +184,7 @@ exports.markComplete = async (req, res) => {
     order.status = "completed";
     order.completedAt = new Date();
 
-    // Store an API URL so the PDF is generated on-demand (Render filesystem is ephemeral)
-    order.resultPdfUrl = `${req.protocol}://${req.get("host")}/api/lab/reports/${order._id}/pdf`;
+    order.resultPdfUrl = `generated:${order._id}`;
     await order.save();
 
     order = await LabOrder.findById(order._id)
