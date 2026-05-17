@@ -7,14 +7,17 @@ const TIMEZONE    = "Asia/Kolkata";
 
 function getAuth() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key   = (process.env.GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+  let key     = process.env.GOOGLE_PRIVATE_KEY || "";
+
+  // Normalize: replace literal \n with real newlines, strip surrounding quotes
+  key = key.replace(/\\n/g, "\n").replace(/^["']|["']$/g, "").trim();
 
   if (!email || !key) {
     throw new Error("GOOGLE_SERVICE_ACCOUNT_EMAIL or GOOGLE_PRIVATE_KEY not set.");
   }
 
   return new google.auth.GoogleAuth({
-    credentials: { client_email: email, private_key: key },
+    credentials: { type: "service_account", client_email: email, private_key: key },
     scopes: ["https://www.googleapis.com/auth/calendar"],
   });
 }
