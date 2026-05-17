@@ -177,7 +177,7 @@ export default function EmergencyVoiceBooking() {
       r.onresult = (e: SpeechRecognitionEvent) => {
         let newFinals = "", currentInterim = "";
         // Start from e.resultIndex to avoid reprocessing previous results
-        for (let i = e.resultIndex; i < e.results.length; i++) {
+        for (let i = (e as any).resultIndex ?? 0; i < e.results.length; i++) {
           if (e.results[i].isFinal) newFinals      += e.results[i][0].transcript + " ";
           else                       currentInterim += e.results[i][0].transcript;
         }

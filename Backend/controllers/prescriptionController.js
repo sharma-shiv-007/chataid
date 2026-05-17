@@ -1,9 +1,12 @@
 // backend/controllers/prescriptionController.js
 const Prescription    = require("../models/prescription");
 const Doctor          = require("../models/doctor");
+const Patient         = require("../models/patient");
 const LabOrder        = require("../models/labOrder");
 const catchAsync      = require("../utils/catchAsync");
 const { createNotif } = require("../services/notificationService");
+const { generatePrescriptionPdf } = require("../services/prescriptionPdfService");
+const { sendPrescriptionEmail }   = require("../services/emailService");
 
 // POST /api/prescriptions
 exports.create = catchAsync(async (req, res) => {
@@ -86,6 +89,28 @@ exports.create = catchAsync(async (req, res) => {
     "Your doctor has issued a new prescription.",
     `/prescriptions/${prescription._id}`
   );
+
+  // Generate PDF and email it to the patient (non-blocking)
+  (async () => {
+    try {
+      const [patient, doctor] = await Promise.all([
+        Patient.findById(patientId).select("name email phone age"),
+        Doctor.findById(req.user.id).select("name specialisation specialization hospital"),
+      ]);
+
+      if (!patient?.email) return;
+
+      const pdfBuffer = await generatePrescriptionPdf(prescription, patient, doctor);
+      await sendPrescriptionEmail({
+        toEmail:    patient.email,
+        toName:     patient.name,
+        doctorName: `Dr. ${doctor?.name || "Doctor"}`,
+        pdfBuffer,
+      });
+    } catch (err) {
+      console.warn("[Prescription] PDF/email failed:", err.message);
+    }
+  })();
 
   res.status(201).json({ prescription, labOrder });
 });
