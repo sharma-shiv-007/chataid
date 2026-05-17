@@ -157,21 +157,19 @@ exports.patientChoice = async (req, res) => {
       appointment.rescheduleDate = rescheduleDate;
       appointment.rescheduleTime = rescheduleTime;
     } else {
-      const wasPaid = ["paid", "refund_requested"].includes(appointment.paymentStatus);
-      appointment.paymentStatus = "refunded";
-      appointment.refundStatus = "approved";
-      await creditRefundToWallet(appointment, patientId);
-
-      if (wasPaid) {
-        await notify({
-          userId: patientId,
-          userRole: "Patient",
-          type: "refund",
-          title: "Refund Added to Wallet",
-          message: `INR ${Number(appointment.consultationFee) || 0} has been refunded to your wallet.`,
-          link: "/dashboard",
-        });
+      if (["paid", "refund_requested"].includes(appointment.paymentStatus)) {
+        appointment.paymentStatus = "refund_requested";
       }
+      appointment.refundStatus = "requested";
+
+      await notify({
+        userId: patientId,
+        userRole: "Patient",
+        type: "refund",
+        title: "Refund Request Submitted",
+        message: "Your refund request has been sent to admin. The amount will be credited to your wallet after 24 hours once admin approves it.",
+        link: "/dashboard",
+      });
     }
     appointment.updatedAt = new Date();
     await appointment.save();
@@ -179,7 +177,7 @@ exports.patientChoice = async (req, res) => {
     await notifyAdmins({
       type: "patient_choice",
       title: `Patient chose ${choice === "refund" ? "Refund" : "Reschedule"}`,
-      message: `${getPatientName(appointment)} chose ${choice} for their cancelled appointment with Dr. ${getDoctorName(appointment)}.${choice === "refund" ? " Refund was credited to the patient wallet." : ""}`,
+      message: `${getPatientName(appointment)} chose ${choice} for their cancelled appointment with Dr. ${getDoctorName(appointment)}.${choice === "refund" ? " Refund approval is pending." : ""}`,
       link: "/admin-dashboard",
     });
 

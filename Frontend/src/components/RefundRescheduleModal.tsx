@@ -67,9 +67,16 @@ export default function RefundRescheduleModal({ appointment, onClose, onSuccess 
 
           <p style={{ fontWeight: 800, marginBottom: 10 }}>What would you like to do?</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <ChoiceButton selected={choice === "refund"} color="#10b981" icon={<WalletCards size={20} />} title="Get Refund" subtitle={`INR ${fee} will be added to your wallet`} onClick={() => setChoice("refund")} />
+            <ChoiceButton selected={choice === "refund"} color="#10b981" icon={<WalletCards size={20} />} title="Get Refund" subtitle={`INR ${fee} will be credited after 24 hours once admin approves`} onClick={() => setChoice("refund")} />
             <ChoiceButton selected={choice === "reschedule"} color="#06b6d4" icon={<Calendar size={20} />} title="Reschedule" subtitle="Pick a new date and time" onClick={() => setChoice("reschedule")} />
           </div>
+
+          {choice === "refund" && (
+            <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
+              <p style={{ color: "#10b981", fontSize: 12, fontWeight: 800 }}>Refund request will be sent to admin.</p>
+              <p style={{ color: "#94a3b8", fontSize: 12, marginTop: 4 }}>After admin approval, the amount will be credited to your wallet within 24 hours.</p>
+            </div>
+          )}
 
           {choice === "reschedule" && (
             <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: "rgba(15,23,42,0.75)", border: "1px solid rgba(148,163,184,0.12)", display: "grid", gap: 10 }}>

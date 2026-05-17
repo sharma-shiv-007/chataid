@@ -1033,7 +1033,9 @@ export default function PatientDashboard() {
                               </button>
                             ) : (
                               <p style={{ color: CYAN, fontSize: 12, fontWeight: 700, marginTop: 7 }}>
-                                Request submitted: {appt.patientChoice}
+                                {appt.patientChoice === "refund"
+                                  ? "Refund requested. It will be credited to your wallet after 24 hours once admin approves."
+                                  : "Reschedule request submitted. Waiting for admin approval."}
                               </p>
                             )}
                           </div>
