@@ -330,7 +330,7 @@ exports.getAvailableDoctors = async (req, res) => {
       Doctor.find({})
         .select("name specialisation hospital phone consultationFee rating avatar availability")
         .sort({ name: 1 }),
-      DoctorAvailability.find({}).select("doctorId isAvailable leaves weeklySchedule"),
+      DoctorAvailability.find({}).select("doctorId isAvailable leaves weeklySchedule").lean(),
     ]);
 
     const availabilityByDoctor = new Map(
