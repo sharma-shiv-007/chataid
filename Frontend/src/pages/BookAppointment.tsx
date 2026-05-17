@@ -90,6 +90,7 @@ export default function BookAppointment() {
   const [booking,   setBooking]   = useState(false);
   const [booked,    setBooked]    = useState<any>(null);
   const [error,     setError]     = useState("");
+  const [dayError,  setDayError]  = useState("");
 
   // Step 1 — load available doctors
   useEffect(() => {
@@ -255,12 +256,33 @@ export default function BookAppointment() {
                     Works: {selDoc?.activeDays?.map((d: string) => d.slice(0,3)).join(", ") || "Check schedule"}
                   </p>
                   <input type="date" value={selDate} min={minDate}
-                    onChange={e => { setSelDate(e.target.value); setStep(3); }}
-                    style={{ width: "100%", boxSizing: "border-box" as const, background: "rgba(10,18,34,0.9)", border: `1px solid ${C.cyanBdr}`, borderRadius: 10, padding: "0.7rem 1rem", color: C.text, fontSize: 14, fontFamily: "inherit", outline: "none" }} />
-                  <p style={{ fontSize: 11, color: C.dim, marginTop: 8 }}>Slots load automatically once you pick a date</p>
+                    onChange={e => {
+                      const picked = e.target.value;
+                      setSelDate(picked);
+                      if (selDoc?.activeDays?.length) {
+                        const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+                        const dayOfWeek = dayNames[new Date(`${picked}T12:00:00`).getDay()];
+                        if (!selDoc.activeDays.includes(dayOfWeek)) {
+                          const cap = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
+                          setDayError(`OPD is closed on ${cap}s. Please select a working day (${selDoc.activeDays.map((d: string) => d.slice(0,3)).join(", ")}).`);
+                          return;
+                        }
+                      }
+                      setDayError("");
+                      setStep(3);
+                    }}
+                    style={{ width: "100%", boxSizing: "border-box" as const, background: "rgba(10,18,34,0.9)", border: `1px solid ${dayError ? C.red : C.cyanBdr}`, borderRadius: 10, padding: "0.7rem 1rem", color: C.text, fontSize: 14, fontFamily: "inherit", outline: "none" }} />
+                  {dayError ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, padding: "8px 12px", background: C.redBg, border: `1px solid ${C.redBdr}`, borderRadius: 8 }}>
+                      <AlertCircle size={13} color={C.red} />
+                      <p style={{ fontSize: 12, color: C.red }}>{dayError}</p>
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 11, color: C.dim, marginTop: 8 }}>Slots load automatically once you pick a date</p>
+                  )}
                 </div>
               </div>
-              <NavButtons onBack={() => setStep(1)} />
+              <NavButtons onBack={() => { setDayError(""); setStep(1); }} />
             </motion.div>
           )}
 

@@ -220,11 +220,20 @@ exports.listPatients = async (req, res) => {
 
 exports.getMyPatients = async (req, res) => {
   try {
-    const appts = await Appointment.find({ doctorId: req.user.id })
-      .select("patientId")
+    const appts = await Appointment.find({
+      $or: [{ doctorId: req.user.id }, { doctor: req.user.id }],
+    })
+      .select("patientId patient")
       .lean();
 
-    const ids = [...new Set(appts.map(a => String(a.patientId)))];
+    // Collect patientId and patient (both fields used across booking paths),
+    // then drop nulls and non-ObjectId strings before querying.
+    const rawIds = appts.flatMap(a => [a.patientId, a.patient]).filter(Boolean);
+    const ids = [...new Set(
+      rawIds.map(id => String(id)).filter(id => /^[a-f\d]{24}$/i.test(id))
+    )];
+
+    if (!ids.length) return res.json({ patients: [] });
 
     const patients = await Patient.find({ _id: { $in: ids } })
       .select("name email age gender blood vitals symptoms conditions")
