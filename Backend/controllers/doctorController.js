@@ -465,10 +465,14 @@ exports.writePrescription = async (req, res) => {
     // Generate PDF and email to patient (non-blocking)
     (async () => {
       try {
+        console.log("[Prescription] Starting PDF+email for patient:", patientId);
         const patient = await Patient.findById(patientId).select("name email phone age");
+        console.log("[Prescription] Patient email:", patient?.email || "NO EMAIL FOUND");
         if (!patient?.email) return;
         const fullDoctor = await Doctor.findById(req.user.id).select("name specialisation specialization hospital");
+        console.log("[Prescription] Generating PDF...");
         const pdfBuffer  = await generatePrescriptionPdf(rx, patient, fullDoctor);
+        console.log("[Prescription] PDF generated, size:", pdfBuffer.length);
         await sendPrescriptionEmail({
           toEmail:    patient.email,
           toName:     patient.name,
@@ -476,7 +480,7 @@ exports.writePrescription = async (req, res) => {
           pdfBuffer,
         });
       } catch (emailErr) {
-        console.warn("[Prescription] PDF/email failed:", emailErr.message);
+        console.error("[Prescription] PDF/email failed:", emailErr.message, emailErr.stack);
       }
     })();
 

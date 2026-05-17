@@ -133,24 +133,34 @@ function parseOSMResponse(json: any, lat: number, lng: number): Hospital[] {
     const elLat = el.lat ?? el.center?.lat, elLng = el.lon ?? el.center?.lon;
     if (!elLat || !elLng) return null;
     const t = el.tags ?? {};
-    return {
-      id: String(el.id),
-      name: t.name || t["name:en"] || "Unnamed Hospital",
-      address: [t["addr:houseno"], t["addr:street"], t["addr:city"]].filter(Boolean).join(", ") || t["addr:full"] || "",
-      lat: elLat, lng: elLng,
-      phone: t.phone || t["contact:phone"] || "",
-      emergency: t.emergency === "yes",
-    };
+    const name = t.name || t["name:en"] || t["name:hi"] || "Unnamed Hospital";
+    const address = [
+      t["addr:housename"], t["addr:housenumber"],
+      t["addr:street"], t["addr:suburb"],
+      t["addr:city"] || t["addr:town"] || t["addr:village"],
+    ].filter(Boolean).join(", ") || t["addr:full"] || t.description || "";
+    const phone = t.phone || t["contact:phone"] || t["contact:mobile"] || t["phone:emergency"] || "";
+    const emergency = t.emergency === "yes" || t.amenity === "hospital" || t.healthcare === "hospital";
+    return { id: String(el.id), name, address, lat: elLat, lng: elLng, phone, emergency };
   }).filter(Boolean) as Hospital[];
 }
 
 async function fetchHospitals(lat: number, lng: number, radiusKm: number): Promise<Hospital[]> {
-  const q = `[out:json][timeout:20];(node["amenity"="hospital"](around:${radiusKm*1000},${lat},${lng});way["amenity"="hospital"](around:${radiusKm*1000},${lat},${lng}););out center;`;
+  const r = radiusKm * 1000;
+  const q = `[out:json][timeout:30];(
+    node["amenity"="hospital"](around:${r},${lat},${lng});
+    way["amenity"="hospital"](around:${r},${lat},${lng});
+    relation["amenity"="hospital"](around:${r},${lat},${lng});
+    node["amenity"="clinic"](around:${r},${lat},${lng});
+    way["amenity"="clinic"](around:${r},${lat},${lng});
+    node["healthcare"="hospital"](around:${r},${lat},${lng});
+    way["healthcare"="hospital"](around:${r},${lat},${lng});
+  );out center tags;`;
 
   for (const mirror of OVERPASS_MIRRORS) {
     try {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 9000);
+      const timer = setTimeout(() => ctrl.abort(), 12000);
       const res = await fetch(`${mirror}?data=${encodeURIComponent(q)}`, { signal: ctrl.signal });
       clearTimeout(timer);
       if (!res.ok) continue;
@@ -261,8 +271,9 @@ export default function EmergencyBooking() {
       if (raw.length === 0) raw = await fetchHospitals(lat, lng, radiusKm * 2.5);
       if (raw.length > 0) {
         const sorted = raw.map(h => ({ ...h, distanceKm: haversineKm(lat, lng, h.lat, h.lng) }))
-          .sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999)).slice(0, 6);
+          .sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999)).slice(0, 8);
         setHospitals(sorted);
+        setHospLoading(false);
         return;
       }
     } catch (err: any) {

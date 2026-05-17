@@ -26,9 +26,26 @@ function calendarClient() {
   return google.calendar({ version: "v3", auth: getAuth() });
 }
 
+function toLocalDateTimeString(dateKey, time) {
+  // Build "YYYY-MM-DDTHH:MM:SS" with zero-padded hours — NO Z suffix.
+  // Google Calendar interprets this in the given timeZone (Asia/Kolkata).
+  const [h, m] = time.split(":").map(Number);
+  const hh = String(h).padStart(2, "0");
+  const mm = String(m).padStart(2, "0");
+  return `${dateKey}T${hh}:${mm}:00`;
+}
+
+function addMinutes(dateKey, time, mins) {
+  const [h, m] = time.split(":").map(Number);
+  const total  = h * 60 + m + mins;
+  const hh = String(Math.floor(total / 60) % 24).padStart(2, "0");
+  const mm = String(total % 60).padStart(2, "0");
+  return `${dateKey}T${hh}:${mm}:00`;
+}
+
 async function createCalendarEvent(appointment, patient, doctor) {
-  const start       = new Date(`${appointment.dateKey}T${appointment.time}:00`);
-  const end         = new Date(start.getTime() + 30 * 60000);
+  const startStr    = toLocalDateTimeString(appointment.dateKey, appointment.time);
+  const endStr      = addMinutes(appointment.dateKey, appointment.time, 30);
   const patientName = patient?.name || appointment.patientName || "Patient";
   const doctorName  = doctor?.name  || appointment.doctorName  || "Doctor";
 
@@ -37,8 +54,8 @@ async function createCalendarEvent(appointment, patient, doctor) {
     resource: {
       summary:     `Appointment: ${patientName} with Dr. ${doctorName}`,
       description: `Patient: ${patientName}\nDoctor: Dr. ${doctorName}\nReason: ${appointment.notes || appointment.chiefComplaint || ""}\nContact: ${patient?.phone || appointment.phone || ""}`,
-      start: { dateTime: start.toISOString(), timeZone: TIMEZONE },
-      end:   { dateTime: end.toISOString(),   timeZone: TIMEZONE },
+      start: { dateTime: startStr, timeZone: TIMEZONE },
+      end:   { dateTime: endStr,   timeZone: TIMEZONE },
     },
   });
 
@@ -76,8 +93,8 @@ exports.notifyRescheduled = async (appointment, patient, doctor, newDate, newTim
 
   try {
     if (eventId) {
-      const start = new Date(`${newDate}T${newTime}:00`);
-      const end   = new Date(start.getTime() + 30 * 60000);
+      const startStr    = toLocalDateTimeString(newDate, newTime);
+      const endStr      = addMinutes(newDate, newTime, 30);
       const patientName = patient?.name || appointment.patientName || "Patient";
       const doctorName  = doctor?.name  || appointment.doctorName  || "Doctor";
 
@@ -87,8 +104,8 @@ exports.notifyRescheduled = async (appointment, patient, doctor, newDate, newTim
         resource: {
           summary:     `Rescheduled: ${patientName} with Dr. ${doctorName}`,
           description: `Patient: ${patientName}\nDoctor: Dr. ${doctorName}\nContact: ${patient?.phone || appointment.phone || ""}`,
-          start: { dateTime: start.toISOString(), timeZone: TIMEZONE },
-          end:   { dateTime: end.toISOString(),   timeZone: TIMEZONE },
+          start: { dateTime: startStr, timeZone: TIMEZONE },
+          end:   { dateTime: endStr,   timeZone: TIMEZONE },
         },
       });
 
