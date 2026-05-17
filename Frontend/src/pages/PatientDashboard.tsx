@@ -10,7 +10,7 @@ import {
   Phone, MapPin, Calendar, Stethoscope, Edit2, Check, X,
   Lock, ChevronRight, AlertTriangle, Mic, FileText, Upload,
   Bell, ClipboardList, CreditCard,
-  WalletCards,
+  WalletCards, Download,
 } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -184,6 +184,30 @@ function PrescriptionCard({ rx }: { rx: any }) {
     ? rx.medications.filter((med: any) => med?.name)
     : [];
   const hasMultipleMedicineFormat = medications.length > 0;
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const BASE  = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const res   = await fetch(`${BASE}/prescriptions/${rx._id}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to download");
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = `prescription-${new Date(rx.createdAt).toLocaleDateString("en-IN").replace(/\//g, "-")}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Could not download prescription. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div style={{ background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.18)", borderRadius: 12, padding: "12px 14px" }}>
@@ -191,7 +215,14 @@ function PrescriptionCard({ rx }: { rx: any }) {
         <span style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>
           {hasMultipleMedicineFormat ? `${medications.length} medicine${medications.length === 1 ? "" : "s"}` : rx.drugName}
         </span>
-        <span style={{ fontSize: 10, color: TEXT_DIM }}>{new Date(rx.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 10, color: TEXT_DIM }}>{new Date(rx.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+          <button onClick={handleDownload} disabled={downloading}
+            style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.35)", color: VIOLET, fontSize: 11, fontWeight: 700, cursor: downloading ? "not-allowed" : "pointer" }}>
+            <Download size={11} />
+            {downloading ? "..." : "PDF"}
+          </button>
+        </div>
       </div>
 
       {!hasMultipleMedicineFormat && (

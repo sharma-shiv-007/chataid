@@ -123,6 +123,23 @@ exports.getForPatient = catchAsync(async (req, res) => {
   res.json({ prescriptions });
 });
 
+// GET /api/prescriptions/:id/pdf  — download prescription as PDF
+exports.downloadPdf = catchAsync(async (req, res) => {
+  const prescription = await Prescription.findOne({
+    _id: req.params.id,
+    $or: [{ patientId: req.user.id }, { doctorId: req.user.id }],
+  }).populate("doctorId", "name specialisation specialization hospital");
+
+  if (!prescription) return res.status(404).json({ error: "Prescription not found." });
+
+  const patient   = await Patient.findById(prescription.patientId).select("name email phone age");
+  const pdfBuffer = await generatePrescriptionPdf(prescription, patient, prescription.doctorId);
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="prescription-${req.params.id}.pdf"`);
+  res.send(pdfBuffer);
+});
+
 // GET /api/prescriptions/my  — patient's own
 exports.getMine = catchAsync(async (req, res) => {
   const prescriptions = await Prescription.find({ patientId: req.user.id })
