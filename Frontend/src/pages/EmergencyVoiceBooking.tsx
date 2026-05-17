@@ -646,15 +646,11 @@ export default function EmergencyVoiceBooking() {
                     <p style={{ color: DIM, fontSize: 13 }}>{slotsReason || (lang === "hi-IN" ? "इस दिन कोई स्लॉट उपलब्ध नहीं है।" : "No slots available on this day.")}</p>
                   </div>
                 : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 8 }}>
-                    {slots.map(({ time, available, past }) => (
+                    {slots.filter(s => !s.past).map(({ time, available }) => (
                       <button key={time} disabled={!available} onClick={() => setSelectedSlot(time)}
-                        style={{ padding: "10px 6px", borderRadius: 10, border: `1px solid ${past ? "rgba(239,68,68,0.2)" : !available ? BORDER : selectedSlot === time ? CYAN_BDR : "rgba(148,163,184,0.15)"}`, background: past ? "rgba(239,68,68,0.04)" : !available ? "rgba(255,255,255,0.01)" : selectedSlot === time ? CYAN_BG : "rgba(255,255,255,0.03)", color: past ? "rgba(239,68,68,0.5)" : !available ? DIM : selectedSlot === time ? CYAN : TEXT, cursor: available ? "pointer" : "not-allowed", fontSize: 13, fontWeight: selectedSlot === time ? 700 : 400, opacity: past ? 0.6 : available ? 1 : 0.4 }}>
+                        style={{ padding: "10px 6px", borderRadius: 10, border: `1px solid ${!available ? BORDER : selectedSlot === time ? CYAN_BDR : "rgba(148,163,184,0.15)"}`, background: !available ? "rgba(255,255,255,0.01)" : selectedSlot === time ? CYAN_BG : "rgba(255,255,255,0.03)", color: !available ? DIM : selectedSlot === time ? CYAN : TEXT, cursor: available ? "pointer" : "not-allowed", fontSize: 13, fontWeight: selectedSlot === time ? 700 : 400, opacity: available ? 1 : 0.4 }}>
                         <span style={{ display: "block" }}>{time}</span>
-                        {past
-                          ? <span style={{ fontSize: 9, color: "rgba(239,68,68,0.6)" }}>Passed</span>
-                          : !available
-                            ? <span style={{ fontSize: 9, color: DIM }}>Booked</span>
-                            : null}
+                        {!available && <span style={{ fontSize: 9, color: DIM }}>Booked</span>}
                       </button>
                     ))}
                   </div>
