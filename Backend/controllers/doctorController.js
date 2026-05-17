@@ -9,6 +9,8 @@ const ClinicalNote = require("../models/clinicalNote");
 const LabOrder     = require("../models/labOrder");
 const n8n          = require("../services/n8nService");
 const { createNotif } = require("../services/notificationService");
+const { generatePrescriptionPdf } = require("../services/prescriptionPdfService");
+const { sendPrescriptionEmail }   = require("../services/emailService");
 
 // ── Helper ─────────────────────────────────────────────────────────────────
 const todayRange = () => {
@@ -459,6 +461,24 @@ exports.writePrescription = async (req, res) => {
       `${doctor?.name || "Your doctor"} prescribed ${medSummary}.`,
       "/patient/dashboard"
     );
+
+    // Generate PDF and email to patient (non-blocking)
+    (async () => {
+      try {
+        const patient = await Patient.findById(patientId).select("name email phone age");
+        if (!patient?.email) return;
+        const fullDoctor = await Doctor.findById(req.user.id).select("name specialisation specialization hospital");
+        const pdfBuffer  = await generatePrescriptionPdf(rx, patient, fullDoctor);
+        await sendPrescriptionEmail({
+          toEmail:    patient.email,
+          toName:     patient.name,
+          doctorName: `Dr. ${fullDoctor?.name || "Doctor"}`,
+          pdfBuffer,
+        });
+      } catch (emailErr) {
+        console.warn("[Prescription] PDF/email failed:", emailErr.message);
+      }
+    })();
 
     res.status(201).json({ prescription: rx, labOrder });
   } catch (err) {
