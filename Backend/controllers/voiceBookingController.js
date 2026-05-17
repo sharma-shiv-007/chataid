@@ -145,10 +145,25 @@ const normalizeDateKey = (value) => {
 // ── GET /api/voice/doctors ────────────────────────────────────────────────────
 exports.getDoctors = async (req, res) => {
   try {
-    const doctors = await Doctor.find({ name: { $exists: true, $ne: "" } })
-      .select("name specialisation hospital consultationFee")
-      .sort({ name: 1 });
-    res.json({ doctors });
+    const DoctorAvailability = require("../models/doctorAvailability");
+    const [doctors, availDocs] = await Promise.all([
+      Doctor.find({ name: { $exists: true, $ne: "" } })
+        .select("name specialisation hospital consultationFee")
+        .sort({ name: 1 })
+        .lean(),
+      DoctorAvailability.find({}).select("doctorId isAvailable weeklySchedule").lean(),
+    ]);
+    const availMap = new Map(availDocs.map(a => [String(a.doctorId), a]));
+    const result = doctors
+      .filter(doc => availMap.get(String(doc._id))?.isAvailable !== false)
+      .map(doc => {
+        const av = availMap.get(String(doc._id));
+        const activeDays = Object.entries(av?.weeklySchedule || {})
+          .filter(([, v]) => v?.active)
+          .map(([day]) => day);
+        return { ...doc, activeDays };
+      });
+    res.json({ doctors: result });
   } catch (err) {
     res.status(500).json({ error: "Could not fetch doctors." });
   }
@@ -185,25 +200,51 @@ exports.getSlots = async (req, res) => {
     const { date, doctorId } = req.query;
     if (!date) return res.status(400).json({ error: "date query param required." });
 
+    const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+    const dayOfWeek = dayNames[new Date(`${date}T12:00:00`).getDay()];
+    const todayKey  = new Date().toISOString().split("T")[0];
+    const isToday   = date === todayKey;
+    const nowMins   = new Date().getHours() * 60 + new Date().getMinutes();
+
+    // Check doctor's weekly schedule when a doctorId is provided
+    if (doctorId) {
+      const DoctorAvailability = require("../models/doctorAvailability");
+      const avail = await DoctorAvailability.findOne({ doctorId }).lean();
+      if (avail) {
+        const daySchedule = avail.weeklySchedule?.[dayOfWeek];
+        if (!daySchedule?.active) {
+          return res.json({ date, slots: [], reason: "OPD is closed on this day." });
+        }
+        if (daySchedule.slots?.length) {
+          const booked = await Appointment.find({
+            dateKey: date,
+            $or: [{ doctorId }, { doctor: doctorId }],
+            status: { $nin: ["cancelled"] },
+          }).select("time").lean();
+          const bookedTimes = new Set(booked.map(a => a.time));
+          const slots = daySchedule.slots.map(s => {
+            const [h, m] = s.time.split(":").map(Number);
+            const isPast = isToday && (h * 60 + m) <= nowMins;
+            return { time: s.time, available: !bookedTimes.has(s.time) && !isPast, past: isPast };
+          });
+          return res.json({ date, slots });
+        }
+      }
+    }
+
+    // Fallback: no schedule configured — generate default 9-17 slots
     const booked = await Appointment.find({
       dateKey: date,
       ...(doctorId ? { $or: [{ doctorId }, { doctor: doctorId }] } : {}),
       status: { $nin: ["cancelled"] },
     }).select("time").lean();
     const bookedTimes = new Set(booked.map(a => a.time));
-
-    // For today, mark slots whose time has already passed as unavailable
-    const todayKey = new Date().toISOString().split("T")[0];
-    const isToday  = date === todayKey;
-    const now      = new Date();
-    const nowMins  = now.getHours() * 60 + now.getMinutes();
-
     const slots = [];
     for (let h = 9; h < 17; h++) {
       for (const m of [0, 30]) {
-        const time      = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-        const slotMins  = h * 60 + m;
-        const isPast    = isToday && slotMins <= nowMins;
+        const time     = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+        const slotMins = h * 60 + m;
+        const isPast   = isToday && slotMins <= nowMins;
         slots.push({ time, available: !bookedTimes.has(time) && !isPast, past: isPast });
       }
     }

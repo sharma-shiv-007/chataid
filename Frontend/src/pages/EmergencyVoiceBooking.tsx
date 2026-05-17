@@ -34,7 +34,7 @@ interface Extracted {
   preferredSpecialty: string; appointmentType: "in-person" | "video"; notes: string;
 }
 interface Slot     { time: string; available: boolean; past?: boolean; }
-interface Doctor   { _id: string; name: string; specialisation?: string; hospital?: string; consultationFee?: number; }
+interface Doctor   { _id: string; name: string; specialisation?: string; hospital?: string; consultationFee?: number; activeDays?: string[]; }
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const CYAN = "#06b6d4"; const CYAN_BG = "rgba(6,182,212,0.1)"; const CYAN_BDR = "rgba(6,182,212,0.25)";
@@ -599,12 +599,20 @@ export default function EmergencyVoiceBooking() {
             </div>
 
             <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
-              {dateOpts.map(({ value, label }) => (
-                <button key={value} onClick={() => setSelectedDate(value)}
-                  style={{ flexShrink: 0, padding: "8px 16px", borderRadius: 10, border: `1px solid ${selectedDate === value ? CYAN_BDR : BORDER}`, background: selectedDate === value ? CYAN_BG : "rgba(255,255,255,0.02)", color: selectedDate === value ? CYAN : DIM, cursor: "pointer", fontSize: 13, fontWeight: selectedDate === value ? 700 : 400 }}>
-                  {label}
-                </button>
-              ))}
+              {dateOpts
+                .filter(({ value }) => {
+                  const activeDays = selectedDoctor?.activeDays;
+                  if (!activeDays?.length) return true;
+                  const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+                  const dow = dayNames[new Date(`${value}T12:00:00`).getDay()];
+                  return activeDays.includes(dow);
+                })
+                .map(({ value, label }) => (
+                  <button key={value} onClick={() => setSelectedDate(value)}
+                    style={{ flexShrink: 0, padding: "8px 16px", borderRadius: 10, border: `1px solid ${selectedDate === value ? CYAN_BDR : BORDER}`, background: selectedDate === value ? CYAN_BG : "rgba(255,255,255,0.02)", color: selectedDate === value ? CYAN : DIM, cursor: "pointer", fontSize: 13, fontWeight: selectedDate === value ? 700 : 400 }}>
+                    {label}
+                  </button>
+                ))}
             </div>
 
             <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "1.25rem" }}>
