@@ -39,6 +39,30 @@ const notifyAdmins = async ({ type, title, message, link = "" }) => {
   })));
 };
 
+const creditRefundToWallet = async (appointment, patientId) => {
+  const amount = Number(appointment.consultationFee) || 0;
+  let wallet = await Wallet.findOne({ patient: patientId });
+  if (!wallet) wallet = new Wallet({ patient: patientId, balance: 0, transactions: [] });
+
+  const alreadyCredited = wallet.transactions.some((transaction) =>
+    transaction.type === "credit" &&
+    String(transaction.appointmentId || "") === String(appointment._id)
+  );
+
+  if (!alreadyCredited && amount > 0) {
+    wallet.balance += amount;
+    wallet.transactions.push({
+      type: "credit",
+      amount,
+      description: "Refund for cancelled appointment",
+      appointmentId: appointment._id,
+    });
+    await wallet.save();
+  }
+
+  return wallet;
+};
+
 const findAppointment = (id) =>
   Appointment.findById(id)
     .populate("patient", "name email")
@@ -125,11 +149,29 @@ exports.patientChoice = async (req, res) => {
     }
 
     appointment.patientChoice = choice;
-    if (appointment.paymentStatus === "paid") appointment.paymentStatus = "refund_requested";
-    if (appointment.refundStatus === "none") appointment.refundStatus = "requested";
     if (choice === "reschedule") {
+      if (["paid", "refund_requested"].includes(appointment.paymentStatus)) {
+        appointment.paymentStatus = "refund_requested";
+      }
+      if (appointment.refundStatus === "none") appointment.refundStatus = "requested";
       appointment.rescheduleDate = rescheduleDate;
       appointment.rescheduleTime = rescheduleTime;
+    } else {
+      const wasPaid = ["paid", "refund_requested"].includes(appointment.paymentStatus);
+      appointment.paymentStatus = "refunded";
+      appointment.refundStatus = "approved";
+      await creditRefundToWallet(appointment, patientId);
+
+      if (wasPaid) {
+        await notify({
+          userId: patientId,
+          userRole: "Patient",
+          type: "refund",
+          title: "Refund Added to Wallet",
+          message: `INR ${Number(appointment.consultationFee) || 0} has been refunded to your wallet.`,
+          link: "/dashboard",
+        });
+      }
     }
     appointment.updatedAt = new Date();
     await appointment.save();
@@ -137,7 +179,7 @@ exports.patientChoice = async (req, res) => {
     await notifyAdmins({
       type: "patient_choice",
       title: `Patient chose ${choice === "refund" ? "Refund" : "Reschedule"}`,
-      message: `${getPatientName(appointment)} chose ${choice} for their cancelled appointment with Dr. ${getDoctorName(appointment)}.`,
+      message: `${getPatientName(appointment)} chose ${choice} for their cancelled appointment with Dr. ${getDoctorName(appointment)}.${choice === "refund" ? " Refund was credited to the patient wallet." : ""}`,
       link: "/admin-dashboard",
     });
 
@@ -156,22 +198,12 @@ exports.adminApproveRefund = async (req, res) => {
     const patientId = getPatientId(appointment);
     const amount = Number(appointment.consultationFee) || 0;
 
+    const wallet = await creditRefundToWallet(appointment, patientId);
+
     appointment.paymentStatus = "refunded";
     appointment.refundStatus = "approved";
     appointment.updatedAt = new Date();
     await appointment.save();
-
-    let wallet = await Wallet.findOne({ patient: patientId });
-    if (!wallet) wallet = new Wallet({ patient: patientId, balance: 0, transactions: [] });
-
-    wallet.balance += amount;
-    wallet.transactions.push({
-      type: "credit",
-      amount,
-      description: "Refund for cancelled appointment",
-      appointmentId: appointment._id,
-    });
-    await wallet.save();
 
     await notify({
       userId: patientId,

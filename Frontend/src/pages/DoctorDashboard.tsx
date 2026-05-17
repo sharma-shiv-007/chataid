@@ -1020,6 +1020,7 @@ function AppointmentsTab() {
   const [refreshing, setRefreshing] = useState(false);
   const [error,      setError]      = useState("");
   const [actionId,   setActionId]   = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<any | null>(null);
   const [newIds,     setNewIds]     = useState<Set<string>>(new Set());
   const [newBanner,  setNewBanner]  = useState<string[]>([]);
   const prevIdsRef = useRef<Set<string>>(new Set());
@@ -1197,9 +1198,9 @@ function AppointmentsTab() {
                             style={{ width: 36, height: 36, borderRadius: 10, background: C.greenBg, border: `1px solid ${C.greenBdr}`, color: C.green, cursor: actionId !== null ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             {actionId === `${appt._id}:completed` ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Check size={16} />}
                           </button>
-                          <button onClick={() => markAttendance(appt._id, "no-show")} disabled={actionId !== null} title="Mark as absent"
+                          <button onClick={() => setCancelTarget(appt)} disabled={actionId !== null} title="Cancel appointment"
                             style={{ width: 36, height: 36, borderRadius: 10, background: C.redBg, border: `1px solid ${C.redBdr}`, color: C.red, cursor: actionId !== null ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            {actionId === `${appt._id}:no-show` ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : <X size={16} />}
+                            <X size={16} />
                           </button>
                         </div>
                       )}
@@ -1261,6 +1262,16 @@ function AppointmentsTab() {
               });
             })()
       )}
+      <AnimatePresence>
+        {cancelTarget && (
+          <CancelAppointmentModal
+            appointmentId={cancelTarget._id}
+            patientName={getAppointmentPatientName(cancelTarget)}
+            onClose={() => setCancelTarget(null)}
+            onSuccess={() => load(true)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
