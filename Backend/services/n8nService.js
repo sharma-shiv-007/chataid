@@ -1,152 +1,101 @@
 // backend/services/n8nService.js
-const N8N_BASE = process.env.N8N_URL || "http://localhost:5678";
+// Direct Google Calendar integration — no n8n required.
+const { google } = require("googleapis");
 
-const WEBHOOKS = {
-  book:       `${N8N_BASE}/webhook/patient-intake`,
-  cancel:     `${N8N_BASE}/webhook/appointment-action`,
-  reschedule: `${N8N_BASE}/webhook/do-reschedule`,
-};
+const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || "primary";
+const TIMEZONE    = "Asia/Kolkata";
 
-// Fire and forget; never block the main appointment response.
-async function fireWebhook(url, body) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+function getAuth() {
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const key   = (process.env.GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
 
-  try {
-    const res = await fetch(url, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify(body),
-      signal:  controller.signal,
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.warn(`[n8n] Webhook failed [${url}] status=${res.status}:`, text);
-      return;
-    }
-
-    console.log(`[n8n] Webhook OK [${url}]`);
-  } catch (err) {
-    if (err.name === "AbortError") {
-      console.warn(`[n8n] Webhook timed out after 5s. Is n8n running at ${N8N_BASE}?`);
-      return;
-    }
-
-    console.warn(`[n8n] Webhook error [${url}]:`, err.message);
-  } finally {
-    clearTimeout(timeout);
+  if (!email || !key) {
+    throw new Error("GOOGLE_SERVICE_ACCOUNT_EMAIL or GOOGLE_PRIVATE_KEY not set.");
   }
+
+  return new google.auth.GoogleAuth({
+    credentials: { client_email: email, private_key: key },
+    scopes: ["https://www.googleapis.com/auth/calendar"],
+  });
 }
 
-async function fireWebhookAndReturn(url, body) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-
-  try {
-    const res = await fetch(url, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify(body),
-      signal:  controller.signal,
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.warn(`[n8n] Book webhook failed [${url}] status=${res.status}:`, text);
-      return null;
-    }
-
-    const data = await res.json().catch(() => null);
-    console.log("[n8n] Book webhook response:", data);
-    return data;
-  } catch (err) {
-    if (err.name === "AbortError") {
-      console.warn(`[n8n] Book webhook timed out after 8s. Is n8n running at ${N8N_BASE}?`);
-      return null;
-    }
-
-    console.warn("[n8n] Book webhook error:", err.message);
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
+function calendarClient() {
+  return google.calendar({ version: "v3", auth: getAuth() });
 }
 
-// Book appointment -> Google Calendar event created.
+async function createCalendarEvent(appointment, patient, doctor) {
+  const start       = new Date(`${appointment.dateKey}T${appointment.time}:00`);
+  const end         = new Date(start.getTime() + 30 * 60000);
+  const patientName = patient?.name || appointment.patientName || "Patient";
+  const doctorName  = doctor?.name  || appointment.doctorName  || "Doctor";
+
+  const { data } = await calendarClient().events.insert({
+    calendarId: CALENDAR_ID,
+    resource: {
+      summary:     `Appointment: ${patientName} with Dr. ${doctorName}`,
+      description: `Patient: ${patientName}\nDoctor: Dr. ${doctorName}\nReason: ${appointment.notes || appointment.chiefComplaint || ""}\nContact: ${patient?.phone || appointment.phone || ""}`,
+      start: { dateTime: start.toISOString(), timeZone: TIMEZONE },
+      end:   { dateTime: end.toISOString(),   timeZone: TIMEZONE },
+    },
+  });
+
+  return data;
+}
+
+// Book appointment → create Google Calendar event
 exports.notifyBooked = async (appointment, patient, doctor) => {
-  const start = new Date(`${appointment.dateKey}T${appointment.time}:00`);
-  const end   = new Date(start.getTime() + 30 * 60000);
-  const patientName = patient?.name || appointment.patientName || "Patient";
-  const doctorName = doctor?.name || appointment.doctorName || "Doctor";
-
-  const payload = {
-    action: "book",
-
-    fullName: patientName,
-    email:    patient?.email || "",
-    contact:  patient?.phone || appointment.phone || "",
-    age:      patient?.age || appointment.age || "",
-    aadhaar:  patient?.aadhaar || "",
-
-    bookingId:  appointment._id.toString(),
-    doctor:     doctorName,
-    hospital:   appointment.hospitalName || doctor?.hospital || "",
-    department: appointment.specialty || doctor?.specialisation || "General",
-    symptoms:   (appointment.symptoms || []).join(", ") || appointment.chiefComplaint || appointment.notes || "",
-    symptomDays: "",
-
-    preferredDate: appointment.dateKey,
-    start:         start.toISOString(),
-    end:           end.toISOString(),
-
-    eventTitle:       `Appointment: ${patientName} with ${doctorName}`,
-    eventDescription: `Patient: ${patientName}\nReason: ${appointment.notes || appointment.chiefComplaint || ""}\nContact: ${patient?.phone || appointment.phone || ""}`,
-  };
-
-  console.log("[n8n] Firing book webhook:", payload.bookingId);
-  return fireWebhookAndReturn(WEBHOOKS.book, payload);
+  try {
+    const event = await createCalendarEvent(appointment, patient, doctor);
+    console.log("[Calendar] Event created:", event.id);
+    return { calendarEventId: event.id };
+  } catch (err) {
+    console.warn("[Calendar] Failed to create event:", err.message);
+    return null;
+  }
 };
 
-// Cancel appointment -> Google Calendar event deleted.
-exports.notifyCancelled = (appointment, patient) => {
-  const payload = {
-    action:          "cancel",
-    bookingId:       appointment._id.toString(),
-    calendarEventId: appointment.calendarEventId || "",
-    name:            patient?.name || appointment.patientName || "",
-    email:           patient?.email || "",
-  };
-
-  console.log("[n8n] Firing cancel webhook:", payload.bookingId, "eventId:", payload.calendarEventId);
-  fireWebhook(WEBHOOKS.cancel, payload);
+// Cancel appointment → delete Google Calendar event
+exports.notifyCancelled = async (appointment) => {
+  const eventId = appointment.calendarEventId;
+  if (!eventId) return;
+  try {
+    await calendarClient().events.delete({ calendarId: CALENDAR_ID, eventId });
+    console.log("[Calendar] Event deleted:", eventId);
+  } catch (err) {
+    console.warn("[Calendar] Failed to delete event:", err.message);
+  }
 };
 
-// Reschedule -> old event deleted + new event created.
-exports.notifyRescheduled = (appointment, patient, doctor, newDate, newTime) => {
-  const start = new Date(`${newDate}T${newTime}:00`);
-  const end   = new Date(start.getTime() + 30 * 60000);
-  const patientName = patient?.name || appointment.patientName || "Patient";
-  const doctorName = doctor?.name || appointment.doctorName || "Doctor";
+// Reschedule → update existing Google Calendar event
+exports.notifyRescheduled = async (appointment, patient, doctor, newDate, newTime) => {
+  const eventId = appointment.calendarEventId;
+  const updated = { ...appointment.toObject?.() ?? appointment, dateKey: newDate, time: newTime };
 
-  const payload = {
-    action: "reschedule",
+  try {
+    if (eventId) {
+      const start = new Date(`${newDate}T${newTime}:00`);
+      const end   = new Date(start.getTime() + 30 * 60000);
+      const patientName = patient?.name || appointment.patientName || "Patient";
+      const doctorName  = doctor?.name  || appointment.doctorName  || "Doctor";
 
-    bookingId:     appointment._id.toString(),
-    fullName:      patientName,
-    email:         patient?.email || "",
-    contact:       patient?.phone || appointment.phone || "",
-    age:           patient?.age || "",
-    hospital:      doctor?.hospital || "",
-    department:    doctor?.specialisation || appointment.specialty || "General",
-    symptoms:      (appointment.symptoms || []).join(", ") || appointment.notes || "",
-    doctor:        doctorName,
-    start:         start.toISOString(),
-    end:           end.toISOString(),
-    preferredDate: newDate,
-    eventTitle:    `Rescheduled: ${patientName} with ${doctorName}`,
-  };
+      const { data } = await calendarClient().events.update({
+        calendarId: CALENDAR_ID,
+        eventId,
+        resource: {
+          summary:     `Rescheduled: ${patientName} with Dr. ${doctorName}`,
+          description: `Patient: ${patientName}\nDoctor: Dr. ${doctorName}\nContact: ${patient?.phone || appointment.phone || ""}`,
+          start: { dateTime: start.toISOString(), timeZone: TIMEZONE },
+          end:   { dateTime: end.toISOString(),   timeZone: TIMEZONE },
+        },
+      });
 
-  console.log("[n8n] Firing reschedule webhook:", payload.bookingId);
-  fireWebhook(WEBHOOKS.reschedule, payload);
+      console.log("[Calendar] Event updated:", data.id);
+      return { calendarEventId: data.id };
+    } else {
+      return await exports.notifyBooked(updated, patient, doctor);
+    }
+  } catch (err) {
+    console.warn("[Calendar] Failed to update event:", err.message);
+    return null;
+  }
 };
