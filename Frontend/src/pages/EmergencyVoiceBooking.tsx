@@ -126,6 +126,8 @@ export default function EmergencyVoiceBooking() {
   const [doctorsLoading, setDoctorsLoading] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [slots,        setSlots]        = useState<Slot[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsReason,  setSlotsReason]  = useState("");
   const [selectedDate, setSelectedDate] = useState(getDateOptions()[0].value);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [booking,      setBooking]      = useState(false);
@@ -254,10 +256,11 @@ export default function EmergencyVoiceBooking() {
   // ── Slots for selected doctor ───────────────────────────────────────────────
   useEffect(() => {
     if (stage !== "slots" || !selectedDoctor) return;
-    setSlots([]); setSelectedSlot(null);
+    setSlots([]); setSelectedSlot(null); setSlotsReason(""); setSlotsLoading(true);
     apiReq("GET", `/voice/slots?date=${selectedDate}&doctorId=${selectedDoctor._id}`)
-      .then((d: any) => setSlots(d.slots || []))
-      .catch(() => {});
+      .then((d: any) => { setSlots(d.slots || []); setSlotsReason(d.reason || ""); })
+      .catch(() => setSlotsReason("Could not load slots."))
+      .finally(() => setSlotsLoading(false));
   }, [selectedDate, stage, selectedDoctor]);
 
   // ── Book appointment ────────────────────────────────────────────────────────
@@ -619,10 +622,14 @@ export default function EmergencyVoiceBooking() {
               <p style={{ fontSize: 12, color: DIM, marginBottom: 12, fontWeight: 600 }}>
                 {lang === "hi-IN" ? "उपलब्ध समय" : "Available Times"}
               </p>
-              {slots.length === 0
+              {slotsLoading
                 ? <div style={{ textAlign: "center", padding: "2rem 0" }}>
                     <Loader2 size={24} color={DIM} style={{ animation: "spin 1s linear infinite", margin: "0 auto 8px" }} />
                     <p style={{ color: DIM, fontSize: 13 }}>{lang === "hi-IN" ? "समय लोड हो रहा है…" : "Loading slots…"}</p>
+                  </div>
+                : slots.length === 0
+                ? <div style={{ textAlign: "center", padding: "2rem 0" }}>
+                    <p style={{ color: DIM, fontSize: 13 }}>{slotsReason || (lang === "hi-IN" ? "इस दिन कोई स्लॉट उपलब्ध नहीं है।" : "No slots available on this day.")}</p>
                   </div>
                 : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 8 }}>
                     {slots.map(({ time, available, past }) => (
