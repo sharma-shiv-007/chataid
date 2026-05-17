@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { api } from "../api/client";
 
+const N8N_WEBHOOK_URL = "http://localhost:5678/webhook/patient-intake";
+
 // ── tokens ────────────────────────────────────────────────────────────────────
 const C = {
   cyan: "#06b6d4", cyanBg: "rgba(6,182,212,0.08)", cyanBdr: "rgba(6,182,212,0.22)",
@@ -120,6 +122,20 @@ export default function BookAppointment() {
         doctorId: selDoc._id, dateKey: selDate, time: selSlot, reason,
       });
       setBooked(data.appointment);
+      // Fire n8n workflow (non-blocking)
+      fetch(N8N_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appointmentId: data.appointment?._id,
+          doctorId:      selDoc._id,
+          doctorName:    doctorDisplayName(selDoc.name),
+          specialty:     selDoc.specialisation || "",
+          date:          selDate,
+          time:          selSlot,
+          reason,
+        }),
+      }).catch(() => {});
     } catch (err: any) {
       setError(err?.message || "Booking failed. Please try again.");
     } finally {
