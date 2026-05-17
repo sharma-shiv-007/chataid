@@ -1,26 +1,17 @@
 // backend/services/emailService.js
-const nodemailer = require("nodemailer");
-
-function createTransport() {
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-}
+const { Resend } = require("resend");
 
 exports.sendPrescriptionEmail = async ({ toEmail, toName, doctorName, pdfBuffer }) => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn("[Email] EMAIL_USER or EMAIL_PASS not set — skipping prescription email.");
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn("[Email] RESEND_API_KEY not set — skipping prescription email.");
     return;
   }
 
-  const transporter = createTransport();
+  const resend = new Resend(apiKey);
 
-  await transporter.sendMail({
-    from:    `"ChatAid Clinic" <${process.env.EMAIL_USER}>`,
+  const { error } = await resend.emails.send({
+    from:    "ChatAid Clinic <onboarding@resend.dev>",
     to:      toEmail,
     subject: `Your Prescription from ${doctorName}`,
     html: `
@@ -35,24 +26,22 @@ exports.sendPrescriptionEmail = async ({ toEmail, toName, doctorName, pdfBuffer 
             Your prescription from <strong>${doctorName}</strong> has been issued.
             Please find the PDF attached — you can download it and show it at any pharmacy.
           </p>
-          <p style="color:#475569;font-size:13px;margin-top:20px;">
-            If you have any questions, please contact the clinic.
-          </p>
           <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;" />
-          <p style="color:#94a3b8;font-size:12px;">
-            This is an automated message from ChatAid Clinic. Please do not reply to this email.
-          </p>
+          <p style="color:#94a3b8;font-size:12px;">This is an automated message from ChatAid Clinic.</p>
         </div>
       </div>
     `,
     attachments: [
       {
         filename:    "prescription.pdf",
-        content:     pdfBuffer,
-        contentType: "application/pdf",
+        content:     pdfBuffer.toString("base64"),
       },
     ],
   });
+
+  if (error) {
+    throw new Error(error.message || "Resend API error");
+  }
 
   console.log(`[Email] Prescription sent to ${toEmail}`);
 };
