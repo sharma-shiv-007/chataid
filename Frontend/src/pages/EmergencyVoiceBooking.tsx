@@ -162,28 +162,42 @@ export default function EmergencyVoiceBooking() {
 
   // ── Recording ───────────────────────────────────────────────────────────────
   const startListening = useCallback(() => {
-    // Cancel TTS first and wait for audio to settle before opening mic
     window.speechSynthesis?.cancel();
-    setTimeout(() => {
+
+    // Wait until TTS has fully stopped before opening the mic
+    const tryStart = () => {
+      if (window.speechSynthesis?.speaking) { setTimeout(tryStart, 150); return; }
       const r = getSpeech();
       if (!r) return;
       recogRef.current = r;
-      let finalText = "";
+      let finalText   = "";
+      let lastInterim = "";
 
-      r.onstart  = () => { setListening(true); };
+      r.onstart  = () => setListening(true);
       r.onresult = (e: SpeechRecognitionEvent) => {
-        let allFinal = "", currentInterim = "";
-        for (let i = 0; i < e.results.length; i++) {
-          if (e.results[i].isFinal) allFinal += e.results[i][0].transcript + " ";
-          else currentInterim += e.results[i][0].transcript;
+        let newFinals = "", currentInterim = "";
+        // Start from e.resultIndex to avoid reprocessing previous results
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) newFinals      += e.results[i][0].transcript + " ";
+          else                       currentInterim += e.results[i][0].transcript;
         }
-        if (allFinal.trim()) finalText = allFinal.trim();
-        setInterim(currentInterim || allFinal.trim());
+        if (newFinals.trim()) finalText += newFinals;   // accumulate finals
+        lastInterim = currentInterim;
+        setInterim(currentInterim || finalText.trim());
       };
-      r.onend    = () => { setListening(false); setInterim(""); if (finalText.trim()) submitAnswer(finalText.trim()); };
-      r.onerror  = (e: any) => { setListening(false); setInterim(""); if (e.error !== "no-speech") setError(`Mic error: ${e.error}`); };
+      // Fall back to interim text if speech was never finalized
+      r.onend   = () => {
+        setListening(false); setInterim("");
+        const toSubmit = finalText.trim() || lastInterim.trim();
+        if (toSubmit) submitAnswer(toSubmit);
+      };
+      r.onerror = (e: any) => {
+        setListening(false); setInterim("");
+        if (e.error !== "no-speech" && e.error !== "aborted") setError(`Mic error: ${e.error}`);
+      };
       r.start();
-    }, 300);
+    };
+    setTimeout(tryStart, 200);
   }, [questionIdx, userAnswers]); // eslint-disable-line
 
   const stopListening = () => recogRef.current?.stop();
