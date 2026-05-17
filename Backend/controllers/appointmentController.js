@@ -215,6 +215,18 @@ exports.getEmergencies = catchAsync(async (req, res) => {
   res.json({ emergencies });
 });
 
+// GET /api/appointments/:id/public  — unauthenticated, returns only doctorId + dateKey + time
+exports.getPublicInfo = catchAsync(async (req, res) => {
+  const appt = await Appointment.findById(req.params.id).select("doctorId doctor dateKey time patientName");
+  if (!appt) return res.status(404).json({ error: "Appointment not found." });
+  res.json({
+    doctorId: appt.doctorId || appt.doctor,
+    dateKey:  appt.dateKey,
+    time:     appt.time,
+    patientName: appt.patientName,
+  });
+});
+
 exports.updateAppointmentStatus = exports.updateStatus;
 
 exports.cancelAppointment = catchAsync(async (req, res) => {

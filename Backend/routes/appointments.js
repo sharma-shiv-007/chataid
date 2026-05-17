@@ -19,6 +19,7 @@ const optionalAuth = (req, res, next) => {
 };
 
 router.get("/my",          auth, ctrl.getMyAppointments);
+router.get("/:id/public",  ctrl.getPublicInfo);          // no auth — used by reschedule page
 router.get("/doctor",      auth, allow("doctor"), ctrl.getDoctorAppointments);
 router.get("/emergencies", auth, allow("doctor"), ctrl.getEmergencies);
 router.get("/admin",       auth, allow("admin"), ctrl.getAdminAppointments);
