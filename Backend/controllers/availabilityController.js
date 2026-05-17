@@ -298,10 +298,11 @@ exports.getAvailableSlots = async (req, res) => {
     const bookedTimes = new Set(booked.map(a => a.time));
 
     // For today, also mark past slots as booked so patients can't select them
-    const todayKey = new Date().toISOString().split("T")[0];
+    // Use IST (UTC+5:30) — Render servers run in UTC so getHours() would be wrong
+    const nowIST   = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const todayKey = nowIST.toISOString().split("T")[0];
     const isToday  = date === todayKey;
-    const now      = new Date();
-    const nowMins  = now.getHours() * 60 + now.getMinutes();
+    const nowMins  = nowIST.getUTCHours() * 60 + nowIST.getUTCMinutes();
 
     const slots = daySchedule.slots.map(s => {
       const [h, m]   = s.time.split(":").map(Number);

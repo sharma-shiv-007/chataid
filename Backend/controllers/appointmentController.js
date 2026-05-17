@@ -84,11 +84,11 @@ exports.bookAppointment = catchAsync(async (req, res) => {
     if (!slotExists)
       return res.status(400).json({ error: "This time slot does not exist in doctor's schedule." });
 
-    // Reject if the slot is in the past (today only)
-    const todayKey = new Date().toISOString().split("T")[0];
+    // Reject if the slot is in the past (today only) — use IST, not UTC
+    const nowIST   = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const todayKey = nowIST.toISOString().split("T")[0];
     if (dateKey === todayKey && time) {
-      const now     = new Date();
-      const nowMins = now.getHours() * 60 + now.getMinutes();
+      const nowMins  = nowIST.getUTCHours() * 60 + nowIST.getUTCMinutes();
       const [sh, sm] = time.split(":").map(Number);
       if (sh * 60 + sm <= nowMins) {
         return res.status(400).json({ error: "This time slot has already passed. Please choose a future slot." });
