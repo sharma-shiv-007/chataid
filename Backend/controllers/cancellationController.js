@@ -228,17 +228,35 @@ exports.adminApproveReschedule = async (req, res) => {
       return res.status(400).json({ error: "Patient has not selected a reschedule date and time." });
     }
 
-    appointment.status = "confirmed";
-    appointment.date = new Date(`${appointment.rescheduleDate}T00:00:00`);
-    appointment.dateKey = appointment.rescheduleDate;
-    appointment.time = appointment.rescheduleTime;
-    appointment.patientChoice = "none";
-    appointment.paymentStatus = "paid";
-    appointment.refundStatus = "none";
-    appointment.rescheduleDate = "";
-    appointment.rescheduleTime = "";
-    appointment.updatedAt = new Date();
+    const newDate = appointment.rescheduleDate;
+    const newTime = appointment.rescheduleTime;
+
+    appointment.status          = "confirmed";
+    appointment.date            = new Date(`${newDate}T00:00:00`);
+    appointment.dateKey         = newDate;
+    appointment.time            = newTime;
+    appointment.patientChoice   = "none";
+    appointment.paymentStatus   = "paid";
+    appointment.refundStatus    = "none";
+    appointment.rescheduleDate  = "";
+    appointment.rescheduleTime  = "";
+    appointment.calendarEventId = "";
+    appointment.updatedAt       = new Date();
     await appointment.save();
+
+    // Create a fresh Google Calendar event for the rescheduled date/time
+    const patient = appointment.patient || appointment.patientId;
+    const doctor  = appointment.doctor  || appointment.doctorId;
+    try {
+      const calRes     = await n8n.notifyBooked(appointment, patient, doctor);
+      const newEventId = calRes?.calendarEventId;
+      if (newEventId) {
+        await Appointment.findByIdAndUpdate(appointmentId, { calendarEventId: newEventId });
+        console.log("[Calendar] Rescheduled event created:", newEventId);
+      }
+    } catch (calErr) {
+      console.warn("[Calendar] Could not create rescheduled calendar event:", calErr.message);
+    }
 
     const patientId = getPatientId(appointment);
     await notify({
