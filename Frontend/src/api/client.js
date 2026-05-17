@@ -44,6 +44,11 @@ export const api = {
       method: "POST", headers: headers(), body: JSON.stringify(body),
     }).then(handleRes),
 
+  register: (body) =>
+    fetch(`${BASE}/auth/register`, {
+      method: "POST", headers: headers(), body: JSON.stringify(body),
+    }).then(handleRes),
+
   // ── Patient Dashboard ──────────────────────────────────────────────────────
   getDashboard: () =>
     fetch(`${BASE}/patient/dashboard`, { headers: headers() }).then(handleRes),
