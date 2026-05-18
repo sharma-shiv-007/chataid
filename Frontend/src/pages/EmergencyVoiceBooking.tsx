@@ -152,23 +152,16 @@ export default function EmergencyVoiceBooking() {
   const [noSpeech,     setNoSpeech]     = useState(false);
   const [muted,        setMuted]        = useState(false);
 
-  const recogRef       = useRef<SpeechRecognition | null>(null);
-  const bottomRef      = useRef<HTMLDivElement | null>(null);
+  const recogRef        = useRef<SpeechRecognition | null>(null);
+  const bottomRef       = useRef<HTMLDivElement | null>(null);
   const shouldListenRef = useRef(false);
+  const accumulatedRef  = useRef("");
   const questions = QUESTIONS[lang];
   const dateOpts  = getDateOptions();
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, interim]);
   useEffect(() => { window.speechSynthesis?.getVoices(); window.speechSynthesis?.addEventListener?.("voiceschanged", () => window.speechSynthesis.getVoices()); }, []);
   useEffect(() => () => { window.speechSynthesis?.cancel(); }, []);
-
-  const getSpeech = useCallback(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { setNoSpeech(true); return null; }
-    const r = new SR();
-    r.continuous = true; r.interimResults = true; r.lang = lang;
-    return r;
-  }, [lang]);
 
   const addAI = useCallback((text: string) => {
     setMessages(m => [...m, { role: "ai", text }]);
@@ -178,61 +171,71 @@ export default function EmergencyVoiceBooking() {
   const addUser = (text: string) => setMessages(m => [...m, { role: "user", text }]);
 
   // ── Recording ───────────────────────────────────────────────────────────────
+  // Uses single-utterance sessions in a restart loop so the mic never closes
+  // on its own. User must click the mic button again to stop and submit.
   const startListening = useCallback(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { setNoSpeech(true); return; }
+
     window.speechSynthesis?.cancel();
     shouldListenRef.current = true;
+    accumulatedRef.current  = "";
+    setInterim("");
+    setListening(true);
 
-    // Wait until TTS has fully stopped before opening the mic
-    const tryStart = () => {
+    const runSession = () => {
       if (!shouldListenRef.current) return;
-      if (window.speechSynthesis?.speaking) { setTimeout(tryStart, 150); return; }
-      const r = getSpeech();
-      if (!r) return;
-      recogRef.current = r;
-      let finalText   = "";
-      let lastInterim = "";
+      if (window.speechSynthesis?.speaking) { setTimeout(runSession, 150); return; }
 
-      r.onstart  = () => setListening(true);
+      const r = new SR();
+      r.continuous     = false;   // single utterance — far more reliable across browsers
+      r.interimResults = true;
+      r.lang           = lang;
+      recogRef.current = r;
+
+      let sessionText = "";
+
       r.onresult = (e: SpeechRecognitionEvent) => {
-        let newFinals = "", currentInterim = "";
-        for (let i = (e as any).resultIndex ?? 0; i < e.results.length; i++) {
-          if (e.results[i].isFinal) newFinals      += e.results[i][0].transcript + " ";
-          else                       currentInterim += e.results[i][0].transcript;
+        let finals = "", interim = "";
+        for (let i = 0; i < e.results.length; i++) {
+          if (e.results[i].isFinal) finals += e.results[i][0].transcript + " ";
+          else                       interim += e.results[i][0].transcript;
         }
-        if (newFinals.trim()) finalText += newFinals;
-        lastInterim = currentInterim;
-        setInterim(currentInterim || finalText.trim());
+        sessionText = finals.trim() || interim;
+        setInterim((accumulatedRef.current + " " + sessionText).trim());
       };
+
       r.onend = () => {
-        const toSubmit = finalText.trim() || lastInterim.trim();
-        if (toSubmit) {
-          // Got speech — submit and stop
-          shouldListenRef.current = false;
-          setListening(false); setInterim("");
-          submitAnswer(toSubmit);
-        } else if (shouldListenRef.current) {
-          // Browser stopped on its own (no-speech timeout) — restart silently
-          setTimeout(tryStart, 100);
+        if (sessionText.trim()) {
+          accumulatedRef.current = (accumulatedRef.current + " " + sessionText).trim();
+          setInterim(accumulatedRef.current);
+        }
+        if (shouldListenRef.current) {
+          setTimeout(runSession, 80); // restart immediately — keeps mic alive
         } else {
-          setListening(false); setInterim("");
+          setListening(false);
+          setInterim("");
+          if (accumulatedRef.current) submitAnswer(accumulatedRef.current);
         }
       };
+
       r.onerror = (e: any) => {
-        if (e.error === "aborted") return; // we stopped it, onend will handle state
-        if (e.error === "no-speech") return; // onend will restart
-        // Real error — stop
+        // aborted = we stopped it; no-speech / network = transient, let onend restart
+        if (e.error === "aborted" || e.error === "no-speech" || e.error === "network") return;
         shouldListenRef.current = false;
         setListening(false); setInterim("");
         setError(`Mic error: ${e.error}`);
       };
-      r.start();
+
+      try { r.start(); } catch (_) { /* already started */ }
     };
-    setTimeout(tryStart, 200);
-  }, [questionIdx, userAnswers]); // eslint-disable-line
+
+    setTimeout(runSession, 300);
+  }, [questionIdx, userAnswers, lang]); // eslint-disable-line
 
   const stopListening = () => {
     shouldListenRef.current = false;
-    recogRef.current?.stop();
+    recogRef.current?.stop(); // triggers onend → submits accumulated text
   };
 
   // ── Submit one answer ───────────────────────────────────────────────────────
@@ -486,7 +489,9 @@ export default function EmergencyVoiceBooking() {
                   {lang === "hi-IN"
                     ? `सवाल ${Math.min(questionIdx + 1, questions.length)} / ${questions.length}`
                     : `Question ${Math.min(questionIdx + 1, questions.length)} of ${questions.length}`}
-                  {listening && <span style={{ color: CYAN, marginLeft: 8 }}>● {lang === "hi-IN" ? "सुन रहे हैं…" : "Recording…"}</span>}
+                  {listening
+                    ? <span style={{ color: CYAN, marginLeft: 8 }}>● {lang === "hi-IN" ? "बोलें, फिर माइक दबाकर जवाब भेजें" : "Speak freely — tap mic again to submit"}</span>
+                    : null}
                 </p>
               </div>
             )}
