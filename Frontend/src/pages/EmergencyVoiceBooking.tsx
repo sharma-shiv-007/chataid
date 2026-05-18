@@ -81,15 +81,31 @@ const QUESTIONS: Record<string, string[]> = {
 function speak(text: string, muted: boolean, lang: string) {
   if (muted || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = lang; u.rate = 0.9; u.pitch = 1.05;
+
+  const fire = () => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang; u.rate = 0.9; u.pitch = 1.05;
+    const voices = window.speechSynthesis.getVoices();
+    const preferred =
+      voices.find(v => v.lang === lang) ||
+      voices.find(v => v.lang.startsWith(lang.split("-")[0])) ||
+      voices.find(v => v.lang.startsWith("en"));
+    if (preferred) u.voice = preferred;
+    window.speechSynthesis.speak(u);
+  };
+
+  // Voices may not be loaded yet on first call — wait for them
   const voices = window.speechSynthesis.getVoices();
-  const preferred =
-    voices.find(v => v.lang === lang) ||
-    voices.find(v => v.lang.startsWith(lang.split("-")[0])) ||
-    voices.find(v => v.lang.startsWith("en"));
-  if (preferred) u.voice = preferred;
-  window.speechSynthesis.speak(u);
+  if (voices.length > 0) {
+    fire();
+  } else {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.onvoiceschanged = null;
+      fire();
+    };
+    // Fallback: speak anyway after 500ms even if voices never fire
+    setTimeout(() => { if (!window.speechSynthesis.speaking) fire(); }, 500);
+  }
 }
 
 const urgencyColor = (u: string) => u === "emergency" ? RED : u === "urgent" ? AMBER : GREEN;
