@@ -152,8 +152,9 @@ export default function EmergencyVoiceBooking() {
   const [noSpeech,     setNoSpeech]     = useState(false);
   const [muted,        setMuted]        = useState(false);
 
-  const recogRef  = useRef<SpeechRecognition | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const recogRef       = useRef<SpeechRecognition | null>(null);
+  const bottomRef      = useRef<HTMLDivElement | null>(null);
+  const shouldListenRef = useRef(false);
   const questions = QUESTIONS[lang];
   const dateOpts  = getDateOptions();
 
@@ -179,9 +180,11 @@ export default function EmergencyVoiceBooking() {
   // ── Recording ───────────────────────────────────────────────────────────────
   const startListening = useCallback(() => {
     window.speechSynthesis?.cancel();
+    shouldListenRef.current = true;
 
     // Wait until TTS has fully stopped before opening the mic
     const tryStart = () => {
+      if (!shouldListenRef.current) return;
       if (window.speechSynthesis?.speaking) { setTimeout(tryStart, 150); return; }
       const r = getSpeech();
       if (!r) return;
@@ -192,31 +195,45 @@ export default function EmergencyVoiceBooking() {
       r.onstart  = () => setListening(true);
       r.onresult = (e: SpeechRecognitionEvent) => {
         let newFinals = "", currentInterim = "";
-        // Start from e.resultIndex to avoid reprocessing previous results
         for (let i = (e as any).resultIndex ?? 0; i < e.results.length; i++) {
           if (e.results[i].isFinal) newFinals      += e.results[i][0].transcript + " ";
           else                       currentInterim += e.results[i][0].transcript;
         }
-        if (newFinals.trim()) finalText += newFinals;   // accumulate finals
+        if (newFinals.trim()) finalText += newFinals;
         lastInterim = currentInterim;
         setInterim(currentInterim || finalText.trim());
       };
-      // Fall back to interim text if speech was never finalized
-      r.onend   = () => {
-        setListening(false); setInterim("");
+      r.onend = () => {
         const toSubmit = finalText.trim() || lastInterim.trim();
-        if (toSubmit) submitAnswer(toSubmit);
+        if (toSubmit) {
+          // Got speech — submit and stop
+          shouldListenRef.current = false;
+          setListening(false); setInterim("");
+          submitAnswer(toSubmit);
+        } else if (shouldListenRef.current) {
+          // Browser stopped on its own (no-speech timeout) — restart silently
+          setTimeout(tryStart, 100);
+        } else {
+          setListening(false); setInterim("");
+        }
       };
       r.onerror = (e: any) => {
+        if (e.error === "aborted") return; // we stopped it, onend will handle state
+        if (e.error === "no-speech") return; // onend will restart
+        // Real error — stop
+        shouldListenRef.current = false;
         setListening(false); setInterim("");
-        if (e.error !== "no-speech" && e.error !== "aborted") setError(`Mic error: ${e.error}`);
+        setError(`Mic error: ${e.error}`);
       };
       r.start();
     };
     setTimeout(tryStart, 200);
   }, [questionIdx, userAnswers]); // eslint-disable-line
 
-  const stopListening = () => recogRef.current?.stop();
+  const stopListening = () => {
+    shouldListenRef.current = false;
+    recogRef.current?.stop();
+  };
 
   // ── Submit one answer ───────────────────────────────────────────────────────
   const submitAnswer = useCallback(async (text: string) => {
